@@ -1,0 +1,68 @@
+version: 1
+environment: local
+
+transport:
+  provider: elasticmq
+  endpoint_url: http://elasticmq:9324
+  host_endpoint_url: http://localhost:9324
+  region: us-east-1
+  account_id: "000000000000"
+  credentials:
+    source: static-local-only
+    access_key_id: local-only-elasticmq
+    secret_access_key: local-only-elasticmq
+  timeouts:
+    connect_seconds: 2
+    read_seconds: 25
+    receive_wait_seconds: 20
+    visibility_seconds: 60
+  redrive:
+    max_receive_count: 5
+  fifo:
+    content_based_deduplication: false
+    deduplication_id: message_id
+  publisher_retry:
+    max_attempts: 8
+    initial_backoff_seconds: 1
+    max_backoff_seconds: 60
+    jitter: full
+
+queues:
+  - name: mvp-oficina-ordens-to-recursos-local.fifo
+    owner: recursos
+    producer: ordens
+    consumer: recursos
+    url: http://elasticmq:9324/000000000000/mvp-oficina-ordens-to-recursos-local.fifo
+    dlq: mvp-oficina-ordens-to-recursos-local-dlq.fifo
+    message_group_id: operation_id
+    message_types:
+      - ReserveItem.v1
+      - ReleaseReservation.v1
+      - ReceiveBackorderedItem.v1
+      - ConsumeReservation.v1
+  - name: mvp-oficina-recursos-to-ordens-local.fifo
+    owner: ordens
+    producer: recursos
+    consumer: ordens
+    url: http://elasticmq:9324/000000000000/mvp-oficina-recursos-to-ordens-local.fifo
+    dlq: mvp-oficina-recursos-to-ordens-local-dlq.fifo
+    message_group_id: operation_id
+    message_types:
+      - ResourceReserved.v1
+      - ItemBackordered.v1
+      - ReservationRejected.v1
+      - ReservationReleased.v1
+      - BackorderedItemReceived.v1
+      - ReservationConsumed.v1
+  - name: mvp-oficina-financeiro-to-ordens-local.fifo
+    owner: ordens
+    producer: financeiro
+    consumer: ordens
+    url: http://elasticmq:9324/000000000000/mvp-oficina-financeiro-to-ordens-local.fifo
+    dlq: mvp-oficina-financeiro-to-ordens-local-dlq.fifo
+    message_group_id: payload.order_id
+    message_types:
+      - QuoteCommunicated.v1
+      - QuoteApproved.v1
+      - QuoteRejected.v1
+      - PaymentConfirmed.v1

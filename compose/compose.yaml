@@ -1,7 +1,7 @@
 name: mvp-oficina-distributed-foundation
 
-# Etapa 1: somente persistências independentes. APIs, initializers, workers,
-# ElasticMQ, runner BDD e fluxos distribuídos entram nas Etapas 2 e 3.
+# Etapa 2: persistências independentes e transporte SQS local. APIs, initializers,
+# workers, runner BDD e fluxos distribuídos completos entram nas próximas frentes.
 services:
   ordens-db:
     image: postgres:16-alpine
@@ -47,6 +47,20 @@ services:
       retries: 10
     networks: [financeiro-data]
 
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.7.1
+    volumes:
+      - ./elasticmq.conf:/opt/elasticmq.conf:ro
+    ports:
+      - "127.0.0.1:9324:9324"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:9324/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks: [service-mesh, edge]
+
 networks:
   ordens-data:
     internal: true
@@ -62,6 +76,7 @@ networks:
 
 x-stage-boundaries:
   stage-2:
-    adds: [elasticmq, api-communication, outbox, inbox, workers, saga]
+    implemented: [elasticmq]
+    pending: [outbox, inbox, workers, saga]
   stage-3:
     adds: [three-apis, initializers, bdd-runner, kong-profile, observability-profile]

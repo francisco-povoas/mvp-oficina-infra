@@ -4,6 +4,7 @@ pythonpath = ["."]
 addopts = "-ra --strict-markers -p no:cacheprovider"
 markers = [
   "stage1: validações estruturais executáveis na Etapa 1",
+  "stage2: validações de transporte e comunicação da Etapa 2",
   "stage3: cenários distribuídos que somente serão ativados na Etapa 3",
 ]
 
