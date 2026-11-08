@@ -17,7 +17,10 @@
 - imagem e digest;
 - `ServiceAccount`/permissões mínimas específicas.
 
-Infra não deve copiar esses manifests. Na Etapa 4, ela comporá refs imutáveis dos três repositórios e validará que os digests correspondem ao manifesto de versões.
+Esses manifests ainda não existem e serão materializados nos repositórios dos três
+serviços somente na Etapa 4. Infra não deve antecipá-los nem copiá-los; naquela etapa,
+ela comporá refs imutáveis dos três repositórios e validará que os digests correspondem
+ao manifesto de versões.
 
 ## Rede e exposição
 

@@ -16,7 +16,7 @@ Este documento é um backlog de fronteira, não uma declaração de componentes 
 
 ## Kubernetes e Kong
 
-- compor os manifests específicos mantidos pelos três serviços;
+- materializar nos três serviços e compor seus manifests específicos;
 - usar imagens ECR por digest e validar sua ligação com `versions/applications.json`;
 - configurar `NetworkPolicy`, ServiceAccounts/IAM, secrets externos, TLS e exposição do Kong;
 - criar credenciais do Grafana fora do Git e storage/retenção quando necessários;

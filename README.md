@@ -25,7 +25,10 @@ A Etapa 1 está **preparada, não implantada**. Os artefatos extraídos podem se
 | `tests/bdd/` | configuração inicial de pytest-bdd e cenário de metadados da Etapa 1 |
 | `docs/` | inventário legado, ownership, adaptações futuras e evidências de validação |
 
-Os manifests específicos de cada aplicação continuam nos repositórios `mvp-oficina-ordens`, `mvp-oficina-recursos` e `mvp-oficina-financeiro`.
+Os manifests específicos de Ordens, Recursos e Financeiro ainda não existem. Por
+decisão de escopo, serão materializados em seus respectivos repositórios somente na
+Etapa 4, junto da preparação do deployment AWS. Não há placeholders para simular essa
+entrega; os manifests compartilhados já presentes em Infra permanecem válidos.
 
 ## Validação local
 
@@ -47,6 +50,7 @@ Detalhes e limitações estão em [docs/validation.md](docs/validation.md).
 
 - Etapa 2: REST distribuído, Outbox/Inbox, workers, SQS/ElasticMQ e Saga.
 - Etapa 3: Compose completo, BDD caixa-preta, contratos como gate e imagens GHCR por digest.
-- Etapa 4: recursos AWS completos, manifests finais, observabilidade distribuída e promoção para ECR.
+- Etapa 4: recursos AWS completos, criação dos manifests específicos dos serviços,
+  observabilidade distribuída e promoção para ECR.
 
 Consulte [docs/stage-4-adaptation.md](docs/stage-4-adaptation.md) antes de estender Terraform ou Kubernetes.
