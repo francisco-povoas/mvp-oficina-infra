@@ -1,0 +1,96 @@
+{
+  "$schema": "../schemas/contracts-lock.schema.json",
+  "lock_version": "1.0",
+  "generated_at": "2026-11-08",
+  "services": [
+    {
+      "service": "mvp-oficina-ordens",
+      "repository": "https://github.com/francisco-povoas/mvp-oficina-ordens",
+      "git_sha": "f6040fd9b8b0ca4b97e69529a0d367c4e211be0d",
+      "contracts_version": "v1",
+      "artifacts": [
+        {
+          "kind": "json-schema",
+          "path": "contracts/common/message-envelope.v1.schema.json",
+          "sha256": "5c10f29788753c0ddf393e130bfbae2958df9f5b2dfd906e7817501093d32df0"
+        },
+        {
+          "kind": "json-schema",
+          "path": "contracts/common/problem.v1.schema.json",
+          "sha256": "66f0f7fb46e594916c3e92b2ae9c05ac06d0c1d78d5038dc3b98915bf7a84add"
+        },
+        {
+          "kind": "example",
+          "path": "contracts/messages/saga-stock.v1.examples.json",
+          "sha256": "9e092f9e43ece6ff3f0a7605762da38a111c7930b8934fb4bdc3873ff6b2df8d"
+        },
+        {
+          "kind": "json-schema",
+          "path": "contracts/messages/saga-stock.v1.schema.json",
+          "sha256": "c6920a1a87e751eed4db71b16fd69292587185bff2693468296ef26ef560282a"
+        },
+        {
+          "kind": "openapi",
+          "path": "contracts/openapi/internal-v1.openapi.json",
+          "sha256": "166282dea431aecbbf163b694eb4ecd5bc6dd728d093391214f73a5bc76f5a47"
+        }
+      ]
+    },
+    {
+      "service": "mvp-oficina-recursos",
+      "repository": "https://github.com/francisco-povoas/mvp-oficina-recursos",
+      "git_sha": "05cd23f16bdb52dd1073b8636f3e3da827d2c5c3",
+      "contracts_version": "v1",
+      "artifacts": [
+        {
+          "kind": "json-schema",
+          "path": "contracts/common/message-envelope.v1.schema.json",
+          "sha256": "5c10f29788753c0ddf393e130bfbae2958df9f5b2dfd906e7817501093d32df0"
+        },
+        {
+          "kind": "json-schema",
+          "path": "contracts/common/problem.v1.schema.json",
+          "sha256": "66f0f7fb46e594916c3e92b2ae9c05ac06d0c1d78d5038dc3b98915bf7a84add"
+        },
+        {
+          "kind": "openapi",
+          "path": "contracts/openapi/internal-v1.openapi.json",
+          "sha256": "45d7f1d0f98ac8d600dd291eb01dff9a510d8f680bc814d285dc2a2a43f7d14b"
+        }
+      ]
+    },
+    {
+      "service": "mvp-oficina-financeiro",
+      "repository": "https://github.com/francisco-povoas/mvp-oficina-financeiro",
+      "git_sha": "f3d65f940406f8e60740c30443f3477e5658252e",
+      "contracts_version": "v1",
+      "artifacts": [
+        {
+          "kind": "json-schema",
+          "path": "contracts/common/message-envelope.v1.schema.json",
+          "sha256": "5c10f29788753c0ddf393e130bfbae2958df9f5b2dfd906e7817501093d32df0"
+        },
+        {
+          "kind": "json-schema",
+          "path": "contracts/common/problem.v1.schema.json",
+          "sha256": "66f0f7fb46e594916c3e92b2ae9c05ac06d0c1d78d5038dc3b98915bf7a84add"
+        },
+        {
+          "kind": "example",
+          "path": "contracts/messages/financial-events.v1.examples.json",
+          "sha256": "a741d1fa6328a2106271c76ecd949886a1cddb055d8060702c63a94a687d3a96"
+        },
+        {
+          "kind": "json-schema",
+          "path": "contracts/messages/financial-events.v1.schema.json",
+          "sha256": "7e3f0e7d50d84285c9cd1714906922b5a66015cfb07322ca9a09e5969049e225"
+        },
+        {
+          "kind": "openapi",
+          "path": "contracts/openapi/internal-v1.openapi.json",
+          "sha256": "c865fd73b11569ac66174746aff9fb2d34336cda5fcaa6458eae38b86f799346"
+        }
+      ]
+    }
+  ]
+}

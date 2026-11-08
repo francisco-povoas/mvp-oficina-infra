@@ -1,0 +1,91 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6},
+      "title": "P95 - latência HTTP",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, service_name) (rate(http_server_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6},
+      "title": "P99 - latência HTTP",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(http_server_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "gridPos": {"x": 0, "y": 6, "w": 12, "h": 5},
+      "title": "Requisições por segundo",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (service_name) (rate(http_server_duration_milliseconds_count[1m]))",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "gridPos": {"x": 12, "y": 6, "w": 12, "h": 5},
+      "title": "Erros HTTP por segundo",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (service_name) (rate(http_server_duration_milliseconds_count{http_status_code=~\"4..|5..\"}[1m]))",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "gridPos": {"x": 0, "y": 11, "w": 12, "h": 5},
+      "title": "Requisições HTTP ativas",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum by (service_name) (http_server_active_requests)",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "gridPos": {"x": 12, "y": 11, "w": 12, "h": 5},
+      "title": "Conexões DB em uso",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum by (service_name) (db_client_connections_usage{state=\"used\"})",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 30,
+  "tags": ["mvp-oficina", "legacy-baseline", "stage-1"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "title": "MVP Oficina - API overview (baseline legado)",
+  "uid": "mvp-api-baseline",
+  "version": 1
+}

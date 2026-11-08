@@ -12,9 +12,13 @@ override.tf.json
 .env.*
 !.env.example
 .pytest_cache/
+.venv/
+__pycache__/
+*.py[cod]
 .coverage
 coverage.xml
 htmlcov/
+.generated/
 .idea/
 .vscode/
 .DS_Store

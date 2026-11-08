@@ -1,0 +1,60 @@
+_format_version: "3.0"
+_transform: true
+
+# Somente caminhos públicos. /internal e /internal/* são intencionalmente ausentes.
+services:
+  - name: ordens
+    url: http://mvp-oficina-ordens.mvp-oficina.svc.cluster.local:80
+    routes:
+      - name: ordens-auth
+        paths: [/api/v1/auth]
+        strip_path: false
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 5
+              policy: local
+              limit_by: ip
+      - name: ordens-public
+        paths:
+          - /api/v1/usuarios
+          - /api/v1/clientes
+          - /api/v1/veiculos
+          - /api/v1/ordens-servico
+        strip_path: false
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 60
+              policy: local
+              limit_by: ip
+
+  - name: recursos
+    url: http://mvp-oficina-recursos.mvp-oficina.svc.cluster.local:80
+    routes:
+      - name: recursos-public
+        paths:
+          - /api/v1/servicos
+          - /api/v1/itens-estoque
+        strip_path: false
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 60
+              policy: local
+              limit_by: ip
+
+  - name: financeiro
+    url: http://mvp-oficina-financeiro.mvp-oficina.svc.cluster.local:80
+    routes:
+      - name: financeiro-public
+        paths:
+          - /api/v1/quotes
+          - /api/v1/payments
+        strip_path: false
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 60
+              policy: local
+              limit_by: ip

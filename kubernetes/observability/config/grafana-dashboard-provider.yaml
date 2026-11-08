@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: mvp-oficina
+    orgId: 1
+    folder: MVP Oficina
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards
