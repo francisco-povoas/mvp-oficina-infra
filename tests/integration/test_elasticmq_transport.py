@@ -10,12 +10,20 @@ import boto3
 import pytest
 import yaml
 from botocore.config import Config
+from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
 TOPOLOGY = yaml.safe_load(
     (ROOT / "compose/messaging-topology.yaml").read_text(encoding="utf-8")
 )
 ENDPOINT_URL = os.getenv("SQS_ENDPOINT_URL", "http://localhost:9324")
+ORDENS_SCHEMA_PATH = Path(
+    os.getenv(
+        "ORDENS_MESSAGE_SCHEMA",
+        ROOT.parent
+        / "mvp-oficina-ordens/contracts/messages/saga-stock.v1.schema.json",
+    )
+)
 
 
 @pytest.fixture(scope="module")
@@ -101,6 +109,8 @@ def test_explicit_message_id_deduplicates_transport_delivery(sqs):
     url = queue_url(sqs, route["name"])
     purge(sqs, url)
     message = reserve_item_message()
+    schema = json.loads(ORDENS_SCHEMA_PATH.read_text(encoding="utf-8"))
+    Draft202012Validator(schema, format_checker=FormatChecker()).validate(message)
     message_id = message["message_id"]
     operation_id = message["operation_id"]
     body = json.dumps(message)
