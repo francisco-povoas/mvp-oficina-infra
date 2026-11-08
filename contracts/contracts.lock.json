@@ -6,7 +6,7 @@
     {
       "service": "mvp-oficina-ordens",
       "repository": "https://github.com/francisco-povoas/mvp-oficina-ordens",
-      "git_sha": "f6040fd9b8b0ca4b97e69529a0d367c4e211be0d",
+      "git_sha": "57d67df5b23e20481f0394ae3c57dc170020032a",
       "contracts_version": "v1",
       "artifacts": [
         {
@@ -32,14 +32,14 @@
         {
           "kind": "openapi",
           "path": "contracts/openapi/internal-v1.openapi.json",
-          "sha256": "166282dea431aecbbf163b694eb4ecd5bc6dd728d093391214f73a5bc76f5a47"
+          "sha256": "118531949af7e1f92bb471204b433415219860b3f239b3b66fa907b336e20c7c"
         }
       ]
     },
     {
       "service": "mvp-oficina-recursos",
       "repository": "https://github.com/francisco-povoas/mvp-oficina-recursos",
-      "git_sha": "05cd23f16bdb52dd1073b8636f3e3da827d2c5c3",
+      "git_sha": "211537a8c6420ba03ada3458b27ecb0be218fe31",
       "contracts_version": "v1",
       "artifacts": [
         {
@@ -55,14 +55,14 @@
         {
           "kind": "openapi",
           "path": "contracts/openapi/internal-v1.openapi.json",
-          "sha256": "45d7f1d0f98ac8d600dd291eb01dff9a510d8f680bc814d285dc2a2a43f7d14b"
+          "sha256": "7e37dd92282524331063be5dee415fc7b684d754419fd39297db55689de1d5a0"
         }
       ]
     },
     {
       "service": "mvp-oficina-financeiro",
       "repository": "https://github.com/francisco-povoas/mvp-oficina-financeiro",
-      "git_sha": "f3d65f940406f8e60740c30443f3477e5658252e",
+      "git_sha": "c1f671896bd21a3d91195b3a2d27237ad27ae388",
       "contracts_version": "v1",
       "artifacts": [
         {
@@ -88,7 +88,7 @@
         {
           "kind": "openapi",
           "path": "contracts/openapi/internal-v1.openapi.json",
-          "sha256": "c865fd73b11569ac66174746aff9fb2d34336cda5fcaa6458eae38b86f799346"
+          "sha256": "62e5a938a7f1429b54de6792a982e8e082293684bf84c51ce0b77970bf281137"
         }
       ]
     }
