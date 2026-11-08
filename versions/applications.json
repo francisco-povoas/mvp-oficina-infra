@@ -1,0 +1,45 @@
+{
+  "$schema": "../schemas/application-versions.schema.json",
+  "manifest_version": "1.0",
+  "status": "prepared-not-built",
+  "generated_at": "2026-11-07",
+  "bdd_run": null,
+  "services": [
+    {
+      "service": "mvp-oficina-ordens",
+      "version": null,
+      "git_sha": "3637881d4a6bc4298a84521e14d97ab95b1d7351",
+      "image": {
+        "repository": "ghcr.io/francisco-povoas/mvp-oficina-ordens",
+        "reference": null,
+        "digest": null
+      },
+      "contracts_version": "v1",
+      "contracts_lock_service": "mvp-oficina-ordens"
+    },
+    {
+      "service": "mvp-oficina-recursos",
+      "version": null,
+      "git_sha": "f0a2fc53260c6c1bc3e36158e049f572cf26d54c",
+      "image": {
+        "repository": "ghcr.io/francisco-povoas/mvp-oficina-recursos",
+        "reference": null,
+        "digest": null
+      },
+      "contracts_version": "v1",
+      "contracts_lock_service": "mvp-oficina-recursos"
+    },
+    {
+      "service": "mvp-oficina-financeiro",
+      "version": null,
+      "git_sha": "0894d8926d9e67e7f64ec9e0ae9a548b811d2bd7",
+      "image": {
+        "repository": "ghcr.io/francisco-povoas/mvp-oficina-financeiro",
+        "reference": null,
+        "digest": null
+      },
+      "contracts_version": "v1",
+      "contracts_lock_service": "mvp-oficina-financeiro"
+    }
+  ]
+}

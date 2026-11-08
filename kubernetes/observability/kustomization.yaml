@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: observability
+resources:
+  - jaeger.yaml
+  - otel-collector.yaml
+  - prometheus.yaml
+  - grafana.yaml
+configMapGenerator:
+  - name: otel-collector-config
+    files:
+      - config.yaml=config/otel-collector.yaml
+  - name: prometheus-config
+    files:
+      - prometheus.yml=config/prometheus.yaml
+  - name: grafana-datasource
+    files:
+      - prometheus.yaml=config/grafana-datasource.yaml
+  - name: grafana-dashboard-provider
+    files:
+      - provider.yaml=config/grafana-dashboard-provider.yaml
+  - name: grafana-dashboards
+    files:
+      - legacy-api-overview.json=dashboards/legacy-api-overview.json
+generatorOptions:
+  disableNameSuffixHash: true

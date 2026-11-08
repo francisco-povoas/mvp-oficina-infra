@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mvp-oficina.local/schemas/application-versions.schema.json",
+  "title": "MVP Oficina application versions manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest_version", "status", "generated_at", "bdd_run", "services"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "manifest_version": {"const": "1.0"},
+    "status": {"enum": ["prepared-not-built", "bdd-validated"]},
+    "generated_at": {"type": "string", "format": "date"},
+    "bdd_run": {"type": ["string", "null"]},
+    "services": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/service"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "bdd-validated"}}},
+      "then": {
+        "properties": {
+          "bdd_run": {"type": "string", "minLength": 1},
+          "services": {
+            "items": {
+              "properties": {
+                "image": {
+                  "properties": {
+                    "reference": {"type": "string", "pattern": "@sha256:[0-9a-f]{64}$"},
+                    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service",
+        "version",
+        "git_sha",
+        "image",
+        "contracts_version",
+        "contracts_lock_service"
+      ],
+      "properties": {
+        "service": {"type": "string", "pattern": "^mvp-oficina-(ordens|recursos|financeiro)$"},
+        "version": {"type": ["string", "null"]},
+        "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "reference", "digest"],
+          "properties": {
+            "repository": {"type": "string", "pattern": "^ghcr\\.io/"},
+            "reference": {"type": ["string", "null"]},
+            "digest": {"type": ["string", "null"]}
+          }
+        },
+        "contracts_version": {"type": "string", "pattern": "^v[1-9][0-9]*$"},
+        "contracts_lock_service": {"type": "string"}
+      }
+    }
+  }
+}

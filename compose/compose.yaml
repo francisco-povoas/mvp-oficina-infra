@@ -1,0 +1,67 @@
+name: mvp-oficina-distributed-foundation
+
+# Etapa 1: somente persistências independentes. APIs, initializers, workers,
+# ElasticMQ, runner BDD e fluxos distribuídos entram nas Etapas 2 e 3.
+services:
+  ordens-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ordens
+      POSTGRES_USER: ordens
+      POSTGRES_PASSWORD: local-only-ordens
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ordens -d ordens"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks: [ordens-data]
+
+  recursos-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: recursos
+      POSTGRES_USER: recursos
+      POSTGRES_PASSWORD: local-only-recursos
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recursos -d recursos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks: [recursos-data]
+
+  financeiro-dynamodb:
+    image: amazon/dynamodb-local:2.6.1
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          wget -q -O - http://127.0.0.1:8000/shell/ >/dev/null 2>&1 ||
+          wget -q -O - http://127.0.0.1:8000/ >/dev/null 2>&1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [financeiro-data]
+
+networks:
+  ordens-data:
+    internal: true
+  recursos-data:
+    internal: true
+  financeiro-data:
+    internal: true
+  service-mesh:
+    internal: true
+  edge: {}
+  observability:
+    internal: true
+
+x-stage-boundaries:
+  stage-2:
+    adds: [elasticmq, api-communication, outbox, inbox, workers, saga]
+  stage-3:
+    adds: [three-apis, initializers, bdd-runner, kong-profile, observability-profile]
