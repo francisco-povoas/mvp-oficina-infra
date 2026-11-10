@@ -1,0 +1,55 @@
+services:
+  ordens-publisher:
+    environment:
+      PUBLISHER_BATCH_SIZE: 1
+      PUBLISHER_LEASE_SECONDS: 5
+      PUBLISHER_POLL_INTERVAL_SECONDS: 0.2
+      PUBLISHER_INITIAL_BACKOFF_SECONDS: 0.5
+      PUBLISHER_MAX_BACKOFF_SECONDS: 1
+      SQS_CONNECT_TIMEOUT_SECONDS: 0.5
+      SQS_SEND_TIMEOUT_SECONDS: 1
+
+  ordens-seed-checkpoint-e:
+    profiles: [checkpoint-e]
+    build:
+      context: ../../mvp-oficina-ordens
+      target: runtime
+    command: ["python", "/checkpoint-e/seed_outbox.py"]
+    environment:
+      ENVIRONMENT: test
+      DATABASE_URL: postgresql+asyncpg://ordens:local-only-ordens@ordens-db:5432/ordens
+    volumes:
+      - ../tests/checkpoint_e:/checkpoint-e:ro
+    depends_on:
+      ordens-migrate:
+        condition: service_completed_successfully
+    networks: [ordens-data]
+
+  recursos-consumer-checkpoint-e:
+    profiles: [checkpoint-e]
+    build:
+      context: ../../mvp-oficina-recursos
+      target: runtime
+    command: ["python", "/checkpoint-e/recursos_consumer.py"]
+    environment:
+      ENVIRONMENT: test
+      LOG_LEVEL: INFO
+      DATABASE_URL: postgresql+asyncpg://recursos:local-only-recursos@recursos-db:5432/recursos
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local-only-elasticmq
+      AWS_SECRET_ACCESS_KEY: local-only-elasticmq
+      SQS_ENDPOINT_URL: http://elasticmq:9324
+      SQS_ORDENS_TO_RECURSOS_URL: http://elasticmq:9324/000000000000/mvp-oficina-ordens-to-recursos-local.fifo
+      SQS_CONNECT_TIMEOUT_SECONDS: 0.5
+      SQS_READ_TIMEOUT_SECONDS: 5
+      CONSUMER_WAIT_TIME_SECONDS: 1
+      CONSUMER_VISIBILITY_TIMEOUT_SECONDS: 3
+      CONSUMER_HEARTBEAT_SECONDS: 1
+    volumes:
+      - ../tests/checkpoint_e:/checkpoint-e:ro
+    depends_on:
+      recursos-migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+    networks: [recursos-data, service-mesh]

@@ -1,4 +1,4 @@
-.PHONY: validate validate-metadata validate-bdd validate-messaging
+.PHONY: validate validate-metadata validate-bdd validate-messaging validate-checkpoint-e
 
 validate:
 	./scripts/validate-static.sh
@@ -11,3 +11,6 @@ validate-bdd:
 
 validate-messaging:
 	python -m pytest tests/integration/test_elasticmq_transport.py
+
+validate-checkpoint-e:
+	./scripts/run-checkpoint-e.sh
