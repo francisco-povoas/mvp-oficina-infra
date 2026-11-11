@@ -1,8 +1,8 @@
 name: mvp-oficina-distributed-foundation
 
 # Etapa 2: persistências independentes, transporte SQS local e workers existentes.
-# Os workers ficam atrás do profile "messaging-workers". Os consumers continuam
-# fail-closed: sua composição padrão não registra handlers e, portanto, não drena filas.
+# Os workers ficam atrás do profile "messaging-workers". Recursos registra os quatro
+# handlers de estoque; Ordens continua fail-closed sem handlers de Saga/negocio.
 
 x-sqs-environment: &sqs-environment
   ENVIRONMENT: test
@@ -197,7 +197,7 @@ networks:
 
 x-stage-boundaries:
   stage-2:
-    implemented: [elasticmq, outbox, inbox, publishers, consumers]
-    pending: [business-handlers, saga]
+    implemented: [elasticmq, outbox, inbox, publishers, consumers, resource-stock-handlers]
+    pending: [orders-business-handlers, saga]
   stage-3:
     adds: [three-apis, initializers, bdd-runner, kong-profile, observability-profile]

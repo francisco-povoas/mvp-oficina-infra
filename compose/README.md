@@ -7,8 +7,9 @@ outro serviço. As senhas e credenciais `local-only-*` são fictícias e exclusi
 Compose local; não devem ser reutilizadas.
 
 O profile `messaging-workers` inicia migrations e os publishers/consumers existentes.
-Os consumers usam sua composição produtiva fail-closed: como handlers de negócio não
-foram registrados, permanecem pausados e não drenam mensagens.
+Recursos registra na composição produtiva os handlers transacionais de reserva,
+liberação, recebimento e consumo. Ordens permanece fail-closed sem handlers de
+Saga/negócio e não drena suas filas.
 
 Validação sem iniciar containers:
 
@@ -49,6 +50,7 @@ emissão equivalente, interrompe/reestabelece o ElasticMQ e valida redrive para 
 PostgreSQL, DynamoDB Local e ElasticMQ são serviços reais do Compose; não há mock do
 transporte nem das persistências.
 
-APIs não são necessárias a esta prova. Handlers de estoque, eventos de resultado e a
-orquestração funcional da Saga continuam pendentes na Etapa 2. O BDD distribuído
-completo e imagens/digests permanecem na Etapa 3.
+APIs não são necessárias a esta prova histórica do Checkpoint E. O overlay técnico
+continua isolado do consumer funcional de Recursos. A orquestração funcional da Saga
+em Ordens permanece pendente na Etapa 2; BDD distribuído completo e imagens/digests
+permanecem na Etapa 3.
