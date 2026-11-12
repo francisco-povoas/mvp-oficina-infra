@@ -2,7 +2,7 @@
   "$schema": "../schemas/application-versions.schema.json",
   "manifest_version": "1.0",
   "status": "prepared-not-built",
-  "generated_at": "2026-11-08",
+  "generated_at": "2026-11-12",
   "bdd_run": null,
   "services": [
     {
@@ -20,7 +20,7 @@
     {
       "service": "mvp-oficina-recursos",
       "version": null,
-      "git_sha": "211537a8c6420ba03ada3458b27ecb0be218fe31",
+      "git_sha": "3a184c1dcad827a13db0a307b1abbd14706380d2",
       "image": {
         "repository": "ghcr.io/francisco-povoas/mvp-oficina-recursos",
         "reference": null,
@@ -32,7 +32,7 @@
     {
       "service": "mvp-oficina-financeiro",
       "version": null,
-      "git_sha": "c1f671896bd21a3d91195b3a2d27237ad27ae388",
+      "git_sha": "ad83c04aa3773daab2249d7d9e2736d33a72cfac",
       "image": {
         "repository": "ghcr.io/francisco-povoas/mvp-oficina-financeiro",
         "reference": null,
