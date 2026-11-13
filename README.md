@@ -4,11 +4,14 @@ Base versionada da plataforma compartilhada da Fase 4. Este repositório é dono
 
 ## Estado
 
-A Etapa 1 está **preparada, não implantada**. Os artefatos extraídos podem ser validados estaticamente, mas não representam ainda um ambiente distribuído operacional:
+A Etapa 1 está concluída e a Etapa 2 está em andamento. O transporte local do
+Checkpoint A está disponível; APIs e workers distribuídos ainda não formam um fluxo
+de negócio operacional:
 
 - nenhum recurso AWS foi provisionado;
 - nenhum manifest foi aplicado em cluster;
-- o Compose inicia apenas persistências independentes, sem APIs, workers, ElasticMQ ou Saga;
+- o Compose inicia persistências independentes e ElasticMQ com filas/DLQs FIFO;
+- não há ainda publishers, consumers, Inbox funcional ou Saga;
 - o manifesto de versões referencia commits e contratos, mas ainda não possui imagens/digests publicados;
 - os cenários BDD funcionais pertencem à Etapa 3.
 
@@ -19,7 +22,7 @@ A Etapa 1 está **preparada, não implantada**. Os artefatos extraídos podem se
 | `terraform/bootstrap/` | bootstrap isolado e reutilizado do bucket de estado remoto |
 | `terraform/platform/` | contrato Terraform sem recursos para o alvo aprovado da Etapa 4 |
 | `kubernetes/` | namespaces, Kong e observabilidade compartilhados; sem Deployments dos negócios |
-| `compose/` | persistências independentes usadas como base do Compose distribuído futuro |
+| `compose/` | persistências independentes, ElasticMQ e topologia local versionada |
 | `contracts/contracts.lock.json` | referências imutáveis aos contratos mantidos pelos serviços |
 | `versions/applications.json` | combinação preparada de commits, contratos e imagens futuras |
 | `tests/bdd/` | configuração inicial de pytest-bdd e cenário de metadados da Etapa 1 |
@@ -46,9 +49,20 @@ python scripts/validate_metadata.py --repositories-root ..
 
 Detalhes e limitações estão em [docs/validation.md](docs/validation.md).
 
+Para validar o transporte local do Checkpoint A:
+
+```bash
+docker compose -f compose/compose.yaml up -d --wait elasticmq
+make validate-messaging
+docker compose -f compose/compose.yaml down
+```
+
+Nomes, ownership, rotas dos 14 contratos e diferenças relevantes para SQS estão em
+[docs/messaging.md](docs/messaging.md).
+
 ## Limites das próximas etapas
 
-- Etapa 2: REST distribuído, Outbox/Inbox, workers, SQS/ElasticMQ e Saga.
+- Etapa 2: concluir Outbox/Inbox, workers e Saga sobre o transporte já preparado.
 - Etapa 3: Compose completo, BDD caixa-preta, contratos como gate e imagens GHCR por digest.
 - Etapa 4: recursos AWS completos, criação dos manifests específicos dos serviços,
   observabilidade distribuída e promoção para ECR.

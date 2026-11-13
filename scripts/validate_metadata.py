@@ -109,23 +109,48 @@ def validate_local_repositories(lock: dict, repositories_root: Path) -> None:
         repository = repositories_root / name
         if not (repository / ".git").exists():
             raise ValueError(f"{name}: local Git checkout not found at {repository}")
-        head = subprocess.run(
-            ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        locked_sha = service["git_sha"]
+        subprocess.run(
+            ["git", "-C", str(repository), "cat-file", "-e", f"{locked_sha}^{{commit}}"],
             check=True,
             capture_output=True,
             text=True,
-        ).stdout.strip()
-        if head != service["git_sha"]:
+        )
+        ancestry = subprocess.run(
+            ["git", "-C", str(repository), "merge-base", "--is-ancestor", locked_sha, "HEAD"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if ancestry.returncode != 0:
             raise ValueError(
-                f"{name}: local HEAD {head} differs from locked {service['git_sha']}"
+                f"{name}: locked contract commit {locked_sha} is not an ancestor of HEAD"
             )
         for artifact in service["artifacts"]:
             path = repository / artifact["path"]
             if not path.is_file():
                 raise ValueError(f"{name}: missing {artifact['path']}")
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            if digest != artifact["sha256"]:
-                raise ValueError(f"{name}: checksum differs for {artifact['path']}")
+            locked_blob = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(repository),
+                    "show",
+                    f"{locked_sha}:{artifact['path']}",
+                ],
+                check=True,
+                capture_output=True,
+            ).stdout
+            locked_digest = hashlib.sha256(locked_blob).hexdigest()
+            if locked_digest != artifact["sha256"]:
+                raise ValueError(
+                    f"{name}: locked checksum differs for {artifact['path']}"
+                )
+            current_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            if current_digest != artifact["sha256"]:
+                raise ValueError(
+                    f"{name}: current checkout changed locked artifact {artifact['path']}"
+                )
             with path.open(encoding="utf-8") as source:
                 json.load(source)
 

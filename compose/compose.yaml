@@ -1,7 +1,22 @@
 name: mvp-oficina-distributed-foundation
 
-# Etapa 1: somente persistências independentes. APIs, initializers, workers,
-# ElasticMQ, runner BDD e fluxos distribuídos entram nas Etapas 2 e 3.
+# Etapa 2: persistências independentes, transporte SQS local e workers existentes.
+# Os workers ficam atrás do profile "messaging-workers". Recursos registra os quatro
+# handlers de estoque; Ordens continua fail-closed sem handlers de Saga/negocio.
+
+x-sqs-environment: &sqs-environment
+  ENVIRONMENT: test
+  LOG_LEVEL: INFO
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: local-only-elasticmq
+  AWS_SECRET_ACCESS_KEY: local-only-elasticmq
+  SQS_ENDPOINT_URL: http://elasticmq:9324
+  SQS_CONNECT_TIMEOUT_SECONDS: 2
+  SQS_READ_TIMEOUT_SECONDS: 25
+  SQS_SEND_TIMEOUT_SECONDS: 5
+  SQS_ORDENS_TO_RECURSOS_URL: http://elasticmq:9324/000000000000/mvp-oficina-ordens-to-recursos-local.fifo
+  SQS_RECURSOS_TO_ORDENS_URL: http://elasticmq:9324/000000000000/mvp-oficina-recursos-to-ordens-local.fifo
+  SQS_FINANCEIRO_TO_ORDENS_URL: http://elasticmq:9324/000000000000/mvp-oficina-financeiro-to-ordens-local.fifo
 services:
   ordens-db:
     image: postgres:16-alpine
@@ -40,12 +55,132 @@ services:
       test:
         - CMD-SHELL
         - >-
-          wget -q -O - http://127.0.0.1:8000/shell/ >/dev/null 2>&1 ||
-          wget -q -O - http://127.0.0.1:8000/ >/dev/null 2>&1
+          curl --silent --output /dev/null http://127.0.0.1:8000/
       interval: 5s
       timeout: 5s
       retries: 10
     networks: [financeiro-data]
+
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.7.1
+    volumes:
+      - ./elasticmq.conf:/opt/elasticmq.conf:ro
+    ports:
+      - "127.0.0.1:9324:9324"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:9324/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks: [service-mesh, edge]
+
+  ordens-migrate:
+    profiles: [messaging-workers, checkpoint-e]
+    build:
+      context: ../../mvp-oficina-ordens
+      target: runtime
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ordens:local-only-ordens@ordens-db:5432/ordens
+    depends_on:
+      ordens-db:
+        condition: service_healthy
+    networks: [ordens-data]
+
+  recursos-migrate:
+    profiles: [messaging-workers, checkpoint-e]
+    build:
+      context: ../../mvp-oficina-recursos
+      target: runtime
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://recursos:local-only-recursos@recursos-db:5432/recursos
+    depends_on:
+      recursos-db:
+        condition: service_healthy
+    networks: [recursos-data]
+
+  ordens-publisher:
+    profiles: [messaging-workers, checkpoint-e]
+    build:
+      context: ../../mvp-oficina-ordens
+      target: runtime
+    command: ["python", "-m", "app.publisher"]
+    environment:
+      <<: *sqs-environment
+      DATABASE_URL: postgresql+asyncpg://ordens:local-only-ordens@ordens-db:5432/ordens
+    depends_on:
+      ordens-migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+    networks: [ordens-data, service-mesh]
+
+  recursos-publisher:
+    profiles: [messaging-workers]
+    build:
+      context: ../../mvp-oficina-recursos
+      target: runtime
+    command: ["python", "-m", "app.publisher"]
+    environment:
+      <<: *sqs-environment
+      DATABASE_URL: postgresql+asyncpg://recursos:local-only-recursos@recursos-db:5432/recursos
+    depends_on:
+      recursos-migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+    networks: [recursos-data, service-mesh]
+
+  financeiro-publisher:
+    profiles: [messaging-workers]
+    build:
+      context: ../../mvp-oficina-financeiro
+      target: runtime
+    command: ["python", "-m", "app.publisher"]
+    environment:
+      <<: *sqs-environment
+      DYNAMODB_ENDPOINT_URL: http://financeiro-dynamodb:8000
+      DYNAMODB_TABLE: mvp-oficina-financeiro-local
+    depends_on:
+      financeiro-dynamodb:
+        condition: service_healthy
+      elasticmq:
+        condition: service_healthy
+    networks: [financeiro-data, service-mesh]
+
+  recursos-consumer:
+    profiles: [messaging-workers]
+    build:
+      context: ../../mvp-oficina-recursos
+      target: runtime
+    command: ["python", "-m", "app.consumer"]
+    environment:
+      <<: *sqs-environment
+      DATABASE_URL: postgresql+asyncpg://recursos:local-only-recursos@recursos-db:5432/recursos
+    depends_on:
+      recursos-migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+    networks: [recursos-data, service-mesh]
+
+  ordens-consumer:
+    profiles: [messaging-workers]
+    build:
+      context: ../../mvp-oficina-ordens
+      target: runtime
+    command: ["python", "-m", "app.consumer"]
+    environment:
+      <<: *sqs-environment
+      DATABASE_URL: postgresql+asyncpg://ordens:local-only-ordens@ordens-db:5432/ordens
+    depends_on:
+      ordens-migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+    networks: [ordens-data, service-mesh]
 
 networks:
   ordens-data:
@@ -62,6 +197,7 @@ networks:
 
 x-stage-boundaries:
   stage-2:
-    adds: [elasticmq, api-communication, outbox, inbox, workers, saga]
+    implemented: [elasticmq, outbox, inbox, publishers, consumers, resource-stock-handlers]
+    pending: [orders-business-handlers, saga]
   stage-3:
     adds: [three-apis, initializers, bdd-runner, kong-profile, observability-profile]

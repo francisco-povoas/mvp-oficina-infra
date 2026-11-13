@@ -20,6 +20,11 @@ fi
 
 echo "[3/7] Docker Compose model"
 docker compose -f compose/compose.yaml config --quiet
+docker compose \
+  -f compose/compose.yaml \
+  -f compose/compose.checkpoint-e.yaml \
+  --profile checkpoint-e \
+  config --quiet
 
 echo "[4/7] Kubernetes rendering"
 kubectl kustomize kubernetes >/dev/null
