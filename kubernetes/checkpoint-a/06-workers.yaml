@@ -1,0 +1,206 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ordens-publisher
+  namespace: mvp-oficina
+  labels: {app: ordens-publisher, app.kubernetes.io/component: publisher}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: ordens-publisher}
+  template:
+    metadata:
+      labels: {app: ordens-publisher}
+    spec:
+      containers:
+        - name: worker
+          image: mvp-oficina-ordens:checkpoint-a
+          imagePullPolicy: Never
+          command: ["python", "-m", "app.publisher"]
+          envFrom: [{configMapRef: {name: checkpoint-a-config}}]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: ordens-database-url}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-access-key-id}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-secret-access-key}
+          readinessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recursos-publisher
+  namespace: mvp-oficina
+  labels: {app: recursos-publisher, app.kubernetes.io/component: publisher}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: recursos-publisher}
+  template:
+    metadata:
+      labels: {app: recursos-publisher}
+    spec:
+      containers:
+        - name: worker
+          image: mvp-oficina-recursos:checkpoint-a
+          imagePullPolicy: Never
+          command: ["python", "-m", "app.publisher"]
+          envFrom: [{configMapRef: {name: checkpoint-a-config}}]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: recursos-database-url}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-access-key-id}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-secret-access-key}
+          readinessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: financeiro-publisher
+  namespace: mvp-oficina
+  labels: {app: financeiro-publisher, app.kubernetes.io/component: publisher}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: financeiro-publisher}
+  template:
+    metadata:
+      labels: {app: financeiro-publisher}
+    spec:
+      containers:
+        - name: worker
+          image: mvp-oficina-financeiro:checkpoint-a
+          imagePullPolicy: Never
+          command: ["python", "-m", "app.publisher"]
+          envFrom: [{configMapRef: {name: checkpoint-a-config}}]
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-access-key-id}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-secret-access-key}
+          readinessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ordens-consumer
+  namespace: mvp-oficina
+  labels: {app: ordens-consumer, app.kubernetes.io/component: consumer}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: ordens-consumer}
+  template:
+    metadata:
+      labels: {app: ordens-consumer}
+    spec:
+      containers:
+        - name: worker
+          image: mvp-oficina-ordens:checkpoint-a
+          imagePullPolicy: Never
+          command: ["python", "-m", "app.consumer"]
+          envFrom: [{configMapRef: {name: checkpoint-a-config}}]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: ordens-database-url}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-access-key-id}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-secret-access-key}
+          readinessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recursos-consumer
+  namespace: mvp-oficina
+  labels: {app: recursos-consumer, app.kubernetes.io/component: consumer}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: recursos-consumer}
+  template:
+    metadata:
+      labels: {app: recursos-consumer}
+    spec:
+      containers:
+        - name: worker
+          image: mvp-oficina-recursos:checkpoint-a
+          imagePullPolicy: Never
+          command: ["python", "-m", "app.consumer"]
+          envFrom: [{configMapRef: {name: checkpoint-a-config}}]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: recursos-database-url}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-access-key-id}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-secret-access-key}
+          readinessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            exec: {command: ["sh", "-c", "kill -0 1"]}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}

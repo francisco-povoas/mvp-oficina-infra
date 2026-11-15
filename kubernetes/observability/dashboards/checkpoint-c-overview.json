@@ -1,0 +1,77 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 5},
+      "title": "Saúde das APIs",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "max by (http_url) (httpcheck_status{http_status_class=\"2xx\"})",
+          "legendFormat": "{{http_url}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}
+          ],
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "gridPos": {"x": 0, "y": 5, "w": 12, "h": 7},
+      "title": "P95 — latência HTTP por API",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, service_name) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~\"(ordens|recursos|financeiro)-api\",span_kind=\"SPAN_KIND_SERVER\"}[5m])))",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "gridPos": {"x": 12, "y": 5, "w": 12, "h": 7},
+      "title": "Taxa de erros HTTP",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"(ordens|recursos|financeiro)-api\",span_kind=\"SPAN_KIND_SERVER\",status_code=\"STATUS_CODE_ERROR\"}[5m]))",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "gridPos": {"x": 0, "y": 12, "w": 24, "h": 7},
+      "title": "Operações observadas nos publishers e consumers",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (service_name, span_name) (rate(traces_span_metrics_calls_total{service_name=~\".*-(publisher|consumer)\"}[5m]))",
+          "legendFormat": "{{service_name}} — {{span_name}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 41,
+  "tags": ["mvp-oficina", "checkpoint-c", "kubernetes-local"],
+  "templating": {"list": []},
+  "time": {"from": "now-30m", "to": "now"},
+  "timezone": "browser",
+  "title": "MVP Oficina — Checkpoint C",
+  "uid": "mvp-checkpoint-c",
+  "version": 1
+}

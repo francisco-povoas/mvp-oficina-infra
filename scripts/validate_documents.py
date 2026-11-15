@@ -51,9 +51,35 @@ def parse_documents() -> None:
 def validate_kong() -> None:
     path = ROOT / "kubernetes/gateway/kong.yaml"
     config = yaml.safe_load(path.read_text(encoding="utf-8"))
-    names = {service["name"] for service in config["services"]}
-    if names != {"ordens", "recursos", "financeiro"}:
+    services = {service["name"]: service for service in config["services"]}
+    if set(services) != {"ordens", "recursos", "financeiro"}:
         raise ValueError("Kong must route exactly the three public services")
+    expected_urls = {
+        "ordens": "http://ordens-api.mvp-oficina.svc.cluster.local:8001",
+        "recursos": "http://recursos-api.mvp-oficina.svc.cluster.local:8002",
+        "financeiro": "http://financeiro-api.mvp-oficina.svc.cluster.local:8003",
+    }
+    expected_paths = {
+        "ordens": {
+            "/api/v1/auth",
+            "/api/v1/usuarios",
+            "/api/v1/clientes",
+            "/api/v1/veiculos",
+            "/api/v1/ordens-servico",
+        },
+        "recursos": {"/api/v1/servicos", "/api/v1/itens-estoque"},
+        "financeiro": {"/api/v1/quotes", "/api/v1/payments"},
+    }
+    for name, service in services.items():
+        if service.get("url") != expected_urls[name]:
+            raise ValueError(f"Kong upstream mismatch for {name}")
+        configured = {
+            route_path
+            for route in service.get("routes", [])
+            for route_path in route.get("paths", [])
+        }
+        if configured != expected_paths[name]:
+            raise ValueError(f"Kong public paths mismatch for {name}")
     paths = [
         route_path
         for service in config["services"]
@@ -82,6 +108,34 @@ def validate_kubernetes_ownership() -> None:
                     raise ValueError(f"application Deployment must not live in Infra: {name}")
             if document.get("kind") == "Secret":
                 raise ValueError(f"versioned Secret is forbidden: {path}")
+
+
+def validate_observability() -> None:
+    collector_path = ROOT / "kubernetes/observability/config/otel-collector.yaml"
+    collector = yaml.safe_load(collector_path.read_text(encoding="utf-8"))
+    pipelines = collector["service"]["pipelines"]
+    if set(pipelines) != {"traces", "metrics"}:
+        raise ValueError("Collector must expose exactly traces and metrics pipelines")
+    if "otlp_grpc/jaeger" not in pipelines["traces"]["exporters"]:
+        raise ValueError("Collector traces must be exported to Jaeger")
+    metric_receivers = set(pipelines["metrics"]["receivers"])
+    if not {"otlp", "http_check/api_health", "span_metrics"} <= metric_receivers:
+        raise ValueError("Collector metrics must include APIs, health checks and span metrics")
+
+    dashboard_path = (
+        ROOT
+        / "kubernetes/observability/dashboards/checkpoint-c-overview.json"
+    )
+    dashboard = json.loads(dashboard_path.read_text(encoding="utf-8"))
+    titles = {panel["title"] for panel in dashboard["panels"]}
+    expected = {
+        "Saúde das APIs",
+        "P95 — latência HTTP por API",
+        "Taxa de erros HTTP",
+        "Operações observadas nos publishers e consumers",
+    }
+    if titles != expected:
+        raise ValueError("Checkpoint C dashboard panels mismatch")
 
 
 def validate_no_obvious_secrets() -> None:
@@ -155,6 +209,7 @@ def main() -> None:
     parse_documents()
     validate_kong()
     validate_kubernetes_ownership()
+    validate_observability()
     validate_no_obvious_secrets()
     validate_messaging_topology()
     print("documents and boundaries: valid")

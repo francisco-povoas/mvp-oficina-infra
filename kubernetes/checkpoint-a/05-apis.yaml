@@ -1,0 +1,178 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ordens-api
+  namespace: mvp-oficina
+spec:
+  type: ClusterIP
+  selector: {app: ordens-api}
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ordens-api
+  namespace: mvp-oficina
+  labels: {app: ordens-api, app.kubernetes.io/component: api}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: ordens-api}
+  template:
+    metadata:
+      labels: {app: ordens-api}
+    spec:
+      containers:
+        - name: api
+          image: mvp-oficina-ordens:checkpoint-a
+          imagePullPolicy: Never
+          command: ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8001"]
+          ports:
+            - {name: http, containerPort: 8001}
+          envFrom:
+            - configMapRef: {name: checkpoint-a-config}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: ordens-database-url}
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: jwt-secret-key}
+            - name: SERVICE_CLIENTS_JSON
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: service-clients-json}
+            - name: SERVICE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: service-client-secret}
+            - {name: SERVICE_CLIENT_ID, value: mvp-oficina-ordens}
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 384Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recursos-api
+  namespace: mvp-oficina
+spec:
+  type: ClusterIP
+  selector: {app: recursos-api}
+  ports:
+    - name: http
+      port: 8002
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recursos-api
+  namespace: mvp-oficina
+  labels: {app: recursos-api, app.kubernetes.io/component: api}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: recursos-api}
+  template:
+    metadata:
+      labels: {app: recursos-api}
+    spec:
+      containers:
+        - name: api
+          image: mvp-oficina-recursos:checkpoint-a
+          imagePullPolicy: Never
+          command: ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8002"]
+          ports:
+            - {name: http, containerPort: 8002}
+          envFrom:
+            - configMapRef: {name: checkpoint-a-config}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: recursos-database-url}
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: jwt-secret-key}
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 384Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: financeiro-api
+  namespace: mvp-oficina
+spec:
+  type: ClusterIP
+  selector: {app: financeiro-api}
+  ports:
+    - name: http
+      port: 8003
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: financeiro-api
+  namespace: mvp-oficina
+  labels: {app: financeiro-api, app.kubernetes.io/component: api}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: financeiro-api}
+  template:
+    metadata:
+      labels: {app: financeiro-api}
+    spec:
+      containers:
+        - name: api
+          image: mvp-oficina-financeiro:checkpoint-a
+          imagePullPolicy: Never
+          command: ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8003"]
+          ports:
+            - {name: http, containerPort: 8003}
+          envFrom:
+            - configMapRef: {name: checkpoint-a-config}
+          env:
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: jwt-secret-key}
+            - name: SERVICE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: service-client-secret}
+            - {name: SERVICE_CLIENT_ID, value: mvp-oficina-financeiro}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-access-key-id}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-secret-access-key}
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 384Mi}

@@ -2,6 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: observability
 resources:
+  - namespace.yaml
   - jaeger.yaml
   - otel-collector.yaml
   - prometheus.yaml
@@ -21,6 +22,6 @@ configMapGenerator:
       - provider.yaml=config/grafana-dashboard-provider.yaml
   - name: grafana-dashboards
     files:
-      - legacy-api-overview.json=dashboards/legacy-api-overview.json
+      - checkpoint-c-overview.json=dashboards/checkpoint-c-overview.json
 generatorOptions:
   disableNameSuffixHash: true

@@ -3,9 +3,31 @@ receivers:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
+  http_check/api_health:
+    collection_interval: 10s
+    targets:
+      - method: GET
+        endpoint: http://ordens-api.mvp-oficina.svc.cluster.local:8001/health
+      - method: GET
+        endpoint: http://recursos-api.mvp-oficina.svc.cluster.local:8002/health
+      - method: GET
+        endpoint: http://financeiro-api.mvp-oficina.svc.cluster.local:8003/health
 
 processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 180
+    spike_limit_mib: 40
   batch: {}
+
+connectors:
+  span_metrics:
+    histogram:
+      unit: ms
+      explicit:
+        buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s]
+    exclude_dimensions: [collector.instance.id]
+    metrics_flush_interval: 5s
 
 exporters:
   otlp_grpc/jaeger:
@@ -14,16 +36,21 @@ exporters:
       insecure: true
   prometheus:
     endpoint: 0.0.0.0:8889
-  debug:
-    verbosity: basic
+    resource_to_telemetry_conversion:
+      enabled: true
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
 
 service:
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp_grpc/jaeger, debug]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_grpc/jaeger, span_metrics]
     metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [prometheus, debug]
+      receivers: [otlp, http_check/api_health, span_metrics]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]

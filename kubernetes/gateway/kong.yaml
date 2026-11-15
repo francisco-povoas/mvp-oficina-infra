@@ -4,7 +4,7 @@ _transform: true
 # Somente caminhos públicos. /internal e /internal/* são intencionalmente ausentes.
 services:
   - name: ordens
-    url: http://mvp-oficina-ordens.mvp-oficina.svc.cluster.local:80
+    url: http://ordens-api.mvp-oficina.svc.cluster.local:8001
     routes:
       - name: ordens-auth
         paths: [/api/v1/auth]
@@ -30,7 +30,7 @@ services:
               limit_by: ip
 
   - name: recursos
-    url: http://mvp-oficina-recursos.mvp-oficina.svc.cluster.local:80
+    url: http://recursos-api.mvp-oficina.svc.cluster.local:8002
     routes:
       - name: recursos-public
         paths:
@@ -45,7 +45,7 @@ services:
               limit_by: ip
 
   - name: financeiro
-    url: http://mvp-oficina-financeiro.mvp-oficina.svc.cluster.local:80
+    url: http://financeiro-api.mvp-oficina.svc.cluster.local:8003
     routes:
       - name: financeiro-public
         paths:
