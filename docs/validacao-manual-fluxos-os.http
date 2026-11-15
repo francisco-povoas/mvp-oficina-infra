@@ -1,0 +1,589 @@
+### Validação manual distribuída da OS — Fase 4
+### Compatível com REST Client (VS Code: humao.rest-client).
+###
+### Serviços locais:
+###   Ordens     http://localhost:8001
+###   Recursos   http://localhost:8002
+###   Financeiro http://localhost:8003
+###
+### IMPORTANTE — autenticação/primeiro uso
+### A inicialização de Ordens executa migrations + bootstrap idempotente de IAM.
+### Informe ao REST Client o mesmo ADMIN_EMAIL e ADMIN_PASSWORD usados no ambiente.
+### As senhas abaixo são prompts e não ficam armazenadas neste arquivo. Não há JWT,
+### chave de assinatura ou senha real versionada; os três tokens vêm de /auth/token.
+###
+### Dados identificáveis: altere runId, CPF e placas a cada nova execução no mesmo volume.
+
+@ordens = http://localhost:8001
+@recursos = http://localhost:8002
+@financeiro = http://localhost:8003
+@runId = 20261114-02
+@cpfA = 12345678901
+@cpfB = 98765432100
+@placaA = FVA4A02
+@placaB = FVB4B03
+@adminEmail = {{$dotenv ADMIN_EMAIL}}
+@adminPassword = {{$dotenv ADMIN_PASSWORD}}
+@usuarioPassword = {{$dotenv USUARIO_PASSWORD}}
+@atendenteEmail = atendente.validacao.f4.{{runId}}@example.com
+@mecanicoEmail = mecanico.validacao.f4.{{runId}}@example.com
+@tokenAdministrador = {{loginAdministrador.response.body.$.access_token}}
+@tokenMecanico = {{loginMecanico.response.body.$.access_token}}
+@tokenAtendente = {{loginAtendente.response.body.$.access_token}}
+@servicoId = {{criarServico.response.body.$.id}}
+@itemEstoqueId = {{criarItemEstoque.response.body.$.id}}
+@clienteAId = {{criarClienteA.response.body.$.id}}
+@veiculoAId = {{criarVeiculoA.response.body.$.id}}
+@ordemAId = {{criarOrdemA.response.body.$.id}}
+@ordemAServicoId = {{adicionarServicoA.response.body.$.id}}
+@reservaAOperacaoId = {{reservarItemA.response.body.$.operation_id}}
+@orcamentoAId = {{criarOrcamentoA.response.body.$.quote_id}}
+@pagamentoAId = {{criarPagamentoA.response.body.$.payment_id}}
+@consumoAOperacaoId = {{entregarOrdemA.response.body.$.operation_ids[0]}}
+@clienteBId = {{criarClienteB.response.body.$.id}}
+@veiculoBId = {{criarVeiculoB.response.body.$.id}}
+@ordemBId = {{criarOrdemB.response.body.$.id}}
+@reservaBOperacaoId = {{reservarItemB.response.body.$.operation_id}}
+@orcamentoBId = {{criarOrcamentoB.response.body.$.quote_id}}
+
+### 0.1 — Login do Administrador inicial (disponibiliza JWT para o arquivo)
+# @name loginAdministrador
+POST {{ordens}}/api/v1/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{adminEmail}}&password={{adminPassword}}
+
+### 0.2 — Administrador cadastra o Mecânico
+POST {{ordens}}/api/v1/usuarios
+Authorization: Bearer {{tokenAdministrador}}
+Content-Type: application/json
+
+{
+  "nome": "Mecanico Validacao Fase 4 {{runId}}",
+  "email": "{{mecanicoEmail}}",
+  "senha": "{{usuarioPassword}}",
+  "perfis": ["Mecanico"]
+}
+
+### 0.3 — Administrador cadastra o Atendente
+POST {{ordens}}/api/v1/usuarios
+Authorization: Bearer {{tokenAdministrador}}
+Content-Type: application/json
+
+{
+  "nome": "Atendente Validacao Fase 4 {{runId}}",
+  "email": "{{atendenteEmail}}",
+  "senha": "{{usuarioPassword}}",
+  "perfis": ["Atendente"]
+}
+
+### 0.4 — Login do Mecânico (disponibiliza JWT para o arquivo)
+# @name loginMecanico
+POST {{ordens}}/api/v1/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{mecanicoEmail}}&password={{usuarioPassword}}
+
+### 0.5 — Login do Atendente (disponibiliza JWT para o arquivo)
+# @name loginAtendente
+POST {{ordens}}/api/v1/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{atendenteEmail}}&password={{usuarioPassword}}
+
+### 0.6 — Confirma os perfis contidos nos três JWTs, sem decodificação manual
+GET {{ordens}}/api/v1/auth/me
+Authorization: Bearer {{tokenAdministrador}}
+
+###
+GET {{ordens}}/api/v1/auth/me
+Authorization: Bearer {{tokenMecanico}}
+
+###
+GET {{ordens}}/api/v1/auth/me
+Authorization: Bearer {{tokenAtendente}}
+
+### 0.7 — Saúde das três APIs
+GET {{ordens}}/health
+
+###
+GET {{recursos}}/health
+
+###
+GET {{financeiro}}/health
+
+###############################################################################
+### 1 — Dados compartilhados (Recursos)
+###############################################################################
+
+### 1.1 — Serviço do catálogo
+# @name criarServico
+POST {{recursos}}/api/v1/servicos
+Authorization: Bearer {{tokenAdministrador}}
+Content-Type: application/json
+
+{
+  "nome": "Validacao Fase4 {{runId}} Troca Tecnica",
+  "descricao": "Servico identificavel da validacao distribuida",
+  "valor_base": 180.00,
+  "tempo_medio_minutos": 60
+}
+
+### 1.2 — Peça com saldo para reserva, consumo e compensação
+# @name criarItemEstoque
+POST {{recursos}}/api/v1/itens-estoque
+Authorization: Bearer {{tokenAdministrador}}
+Content-Type: application/json
+
+{
+  "tipo": "PECA",
+  "nome": "Peca Validacao Fase4 {{runId}}",
+  "descricao": "Peca para reserva e compensacao distribuida",
+  "codigo": "VAL-F4-{{runId}}",
+  "quantidade_disponivel": 20,
+  "quantidade_minima": 2,
+  "valor_unitario": 85.00
+}
+
+### 1.3 — Saldo inicial esperado: disponível=20, reservado=0
+GET {{recursos}}/api/v1/itens-estoque/{{itemEstoqueId}}
+Authorization: Bearer {{tokenAtendente}}
+
+###############################################################################
+### 2 — Fluxo A: orçamento aprovado até entrega
+###############################################################################
+
+### A.1 — Cliente. Troque o CPF se ele já existir neste volume.
+# @name criarClienteA
+POST {{ordens}}/api/v1/clientes
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "tipo_pessoa": "PF",
+  "nome_razao_social": "Validacao Fase4 Fluxo A {{runId}}",
+  "cpf_cnpj": "{{cpfA}}",
+  "telefone": "71999990001",
+  "email": "validacao.fase4.a@example.com",
+  "cep": "40020000",
+  "logradouro": "Rua Validacao Distribuida",
+  "numero": "4",
+  "bairro": "Centro",
+  "cidade": "Salvador",
+  "uf": "BA"
+}
+
+### A.2 — Veículo. Troque a placa se ela já existir neste volume.
+# @name criarVeiculoA
+POST {{ordens}}/api/v1/veiculos
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "cliente_id": "{{clienteAId}}",
+  "placa": "{{placaA}}",
+  "marca": "Fiat",
+  "modelo": "Pulse",
+  "ano_fabricacao": 2025,
+  "ano_modelo": 2026,
+  "cor": "Azul"
+}
+
+### A.3 — Criar OS; esperado RECEBIDA
+# @name criarOrdemA
+POST {{ordens}}/api/v1/ordens-servico
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "cliente_id": "{{clienteAId}}",
+  "veiculo_id": "{{veiculoAId}}",
+  "queixa_inicial": "Validacao manual distribuida Fase 4 - Fluxo A {{runId}}"
+}
+
+### A.4 — Estado RECEBIDA
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.5 — Iniciar diagnóstico; esperado EM_DIAGNOSTICO
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/iniciar-diagnostico
+Authorization: Bearer {{tokenMecanico}}
+
+### A.6 — Consultar estado
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.7 — Registrar diagnóstico
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/diagnostico
+Authorization: Bearer {{tokenMecanico}}
+Content-Type: application/json
+
+{
+  "diagnostico": "Diagnostico identificavel da validacao Fase 4 - Fluxo A"
+}
+
+### A.8 — Adicionar serviço e guardar vínculo da OS
+# @name adicionarServicoA
+POST {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/servicos
+Authorization: Bearer {{tokenMecanico}}
+Content-Type: application/json
+
+{
+  "servico_id": "{{servicoId}}",
+  "observacao": "Validacao Fase 4 A"
+}
+
+### A.9 — Solicitar reserva assíncrona; esperado HTTP 202
+# @name reservarItemA
+POST {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/itens
+Authorization: Bearer {{tokenMecanico}}
+Idempotency-Key: fase4-{{runId}}-a-reserve
+Content-Type: application/json
+
+{
+  "item_estoque_id": "{{itemEstoqueId}}",
+  "quantidade": 2
+}
+
+### A.10 — POLLING: repita até estado=COMPLETED e terminal_result=RESERVED
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/itens/operacoes/{{reservaAOperacaoId}}
+Authorization: Bearer {{tokenMecanico}}
+
+### A.11 — Confirmar efeito em Recursos: disponível=18, reservado=2
+GET {{recursos}}/api/v1/itens-estoque/{{itemEstoqueId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.12 — Concluir diagnóstico; esperado DIAGNOSTICO_CONCLUIDO
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/concluir-diagnostico
+Authorization: Bearer {{tokenMecanico}}
+
+### A.13 — Consultar estado
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.14 — Criar orçamento no Financeiro; esperado RASCUNHO e total=350.00
+# @name criarOrcamentoA
+POST {{financeiro}}/api/v1/quotes
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "order_id": "{{ordemAId}}"
+}
+
+### A.15 — Comunicar orçamento com exatamente EMAIL + WHATSAPP
+POST {{financeiro}}/api/v1/quotes/{{orcamentoAId}}/communicate
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "communication_id": "{{$guid}}",
+  "evidences": [
+    {
+      "evidence_id": "{{$guid}}",
+      "channel": "EMAIL",
+      "destination": "validacao.fase4.a@example.com",
+      "success": true,
+      "message": "Evidencia simulada para validacao manual",
+      "provider": "LOCAL_VALIDATION",
+      "external_reference": "f4-a-email-{{runId}}",
+      "sent_at": "{{$datetime iso8601}}"
+    },
+    {
+      "evidence_id": "{{$guid}}",
+      "channel": "WHATSAPP",
+      "destination": "71999990001",
+      "success": true,
+      "message": "Evidencia simulada para validacao manual",
+      "provider": "LOCAL_VALIDATION",
+      "external_reference": "f4-a-whatsapp-{{runId}}",
+      "sent_at": "{{$datetime iso8601}}"
+    }
+  ]
+}
+
+### A.16 — POLLING: repita até OS=AGUARDANDO_APROVACAO
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.17 — Histórico disponível: duas evidências de comunicação
+GET {{financeiro}}/api/v1/quotes/{{orcamentoAId}}/communications
+Authorization: Bearer {{tokenAtendente}}
+
+### A.18 — Aprovar orçamento
+POST {{financeiro}}/api/v1/quotes/{{orcamentoAId}}/approve
+Authorization: Bearer {{tokenAtendente}}
+
+### A.19 — POLLING: repita até OS=APROVADA
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.20 — Iniciar execução; esperado EM_EXECUCAO e item EM_USO
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/iniciar-execucao
+Authorization: Bearer {{tokenMecanico}}
+
+### A.21 — Consultar estado
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.22 — Registrar tempo do serviço
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/servicos/{{ordemAServicoId}}/tempo-executado
+Authorization: Bearer {{tokenMecanico}}
+Content-Type: application/json
+
+{
+  "tempo_executado_minutos": 55
+}
+
+### A.23 — Finalizar; esperado FINALIZADA
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/finalizar
+Authorization: Bearer {{tokenMecanico}}
+
+### A.24 — Consultar estado
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.25 — Criar tentativa de pagamento simulada
+# @name criarPagamentoA
+POST {{financeiro}}/api/v1/payments
+Authorization: Bearer {{tokenAtendente}}
+Idempotency-Key: fase4-{{runId}}-a-payment
+Content-Type: application/json
+
+{
+  "quote_id": "{{orcamentoAId}}",
+  "method": "SIMULATED",
+  "amount": 350.00
+}
+
+### A.26 — Confirmar pagamento simulado
+POST {{financeiro}}/api/v1/payments/{{pagamentoAId}}/simulate-confirm
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "provider_reference": "LOCAL-F4-A-{{runId}}"
+}
+
+### A.27 — POLLING: repita até payment_status=CONFIRMED (estado continua FINALIZADA)
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.28 — Solicitar consumo e entrega; esperado HTTP 202
+# @name entregarOrdemA
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/entregar
+Authorization: Bearer {{tokenAtendente}}
+
+### A.29 — POLLING: repita até state=COMPLETED e terminal_result=RESERVATION_CONSUMED
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}/itens/operacoes-estoque/{{consumoAOperacaoId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.30 — POLLING: repita até OS=ENTREGUE e item=CONSUMIDO
+GET {{ordens}}/api/v1/ordens-servico/{{ordemAId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### A.31 — Efeito em Recursos após consumo: disponível=18, reservado=0
+GET {{recursos}}/api/v1/itens-estoque/{{itemEstoqueId}}
+Authorization: Bearer {{tokenAtendente}}
+
+###############################################################################
+### 3 — Fluxo B: orçamento recusado e compensação real
+###############################################################################
+
+### B.1 — Cliente independente. Troque o CPF se já existir.
+# @name criarClienteB
+POST {{ordens}}/api/v1/clientes
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "tipo_pessoa": "PF",
+  "nome_razao_social": "Validacao Fase4 Fluxo B {{runId}}",
+  "cpf_cnpj": "{{cpfB}}",
+  "telefone": "71999990002",
+  "email": "validacao.fase4.b@example.com",
+  "cep": "40020000",
+  "logradouro": "Rua Validacao Distribuida",
+  "numero": "4",
+  "bairro": "Centro",
+  "cidade": "Salvador",
+  "uf": "BA"
+}
+
+### B.2 — Veículo independente. Troque a placa se já existir.
+# @name criarVeiculoB
+POST {{ordens}}/api/v1/veiculos
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "cliente_id": "{{clienteBId}}",
+  "placa": "{{placaB}}",
+  "marca": "Fiat",
+  "modelo": "Pulse",
+  "ano_fabricacao": 2025,
+  "ano_modelo": 2026,
+  "cor": "Azul"
+}
+
+### B.3 — Criar OS; esperado RECEBIDA
+# @name criarOrdemB
+POST {{ordens}}/api/v1/ordens-servico
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "cliente_id": "{{clienteBId}}",
+  "veiculo_id": "{{veiculoBId}}",
+  "queixa_inicial": "Validacao manual distribuida Fase 4 - Fluxo B {{runId}}"
+}
+
+### B.4 — Iniciar diagnóstico
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemBId}}/iniciar-diagnostico
+Authorization: Bearer {{tokenMecanico}}
+
+### B.5 — Estado EM_DIAGNOSTICO
+GET {{ordens}}/api/v1/ordens-servico/{{ordemBId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### B.6 — Registrar diagnóstico
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemBId}}/diagnostico
+Authorization: Bearer {{tokenMecanico}}
+Content-Type: application/json
+
+{
+  "diagnostico": "Diagnostico identificavel da validacao Fase 4 - Fluxo B"
+}
+
+### B.7 — Adicionar serviço
+POST {{ordens}}/api/v1/ordens-servico/{{ordemBId}}/servicos
+Authorization: Bearer {{tokenMecanico}}
+Content-Type: application/json
+
+{
+  "servico_id": "{{servicoId}}",
+  "observacao": "Validacao Fase 4 B"
+}
+
+### B.8 — Reservar a mesma peça; esperado HTTP 202
+# @name reservarItemB
+POST {{ordens}}/api/v1/ordens-servico/{{ordemBId}}/itens
+Authorization: Bearer {{tokenMecanico}}
+Idempotency-Key: fase4-{{runId}}-b-reserve
+Content-Type: application/json
+
+{
+  "item_estoque_id": "{{itemEstoqueId}}",
+  "quantidade": 2
+}
+
+### B.9 — POLLING: repita até estado=COMPLETED e terminal_result=RESERVED
+GET {{ordens}}/api/v1/ordens-servico/{{ordemBId}}/itens/operacoes/{{reservaBOperacaoId}}
+Authorization: Bearer {{tokenMecanico}}
+
+### B.10 — Prova da reserva em Recursos: disponível=16, reservado=2
+GET {{recursos}}/api/v1/itens-estoque/{{itemEstoqueId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### B.11 — Concluir diagnóstico
+PATCH {{ordens}}/api/v1/ordens-servico/{{ordemBId}}/concluir-diagnostico
+Authorization: Bearer {{tokenMecanico}}
+
+### B.12 — Estado DIAGNOSTICO_CONCLUIDO
+GET {{ordens}}/api/v1/ordens-servico/{{ordemBId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### B.13 — Criar orçamento
+# @name criarOrcamentoB
+POST {{financeiro}}/api/v1/quotes
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "order_id": "{{ordemBId}}"
+}
+
+### B.14 — Comunicar orçamento. Os destinos devem coincidir com o snapshot do cliente B.
+POST {{financeiro}}/api/v1/quotes/{{orcamentoBId}}/communicate
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "communication_id": "{{$guid}}",
+  "evidences": [
+    {
+      "evidence_id": "{{$guid}}",
+      "channel": "EMAIL",
+      "destination": "validacao.fase4.b@example.com",
+      "success": true,
+      "message": "Evidencia simulada para validacao manual",
+      "provider": "LOCAL_VALIDATION",
+      "external_reference": "f4-b-email-{{runId}}",
+      "sent_at": "{{$datetime iso8601}}"
+    },
+    {
+      "evidence_id": "{{$guid}}",
+      "channel": "WHATSAPP",
+      "destination": "71999990002",
+      "success": true,
+      "message": "Evidencia simulada para validacao manual",
+      "provider": "LOCAL_VALIDATION",
+      "external_reference": "f4-b-whatsapp-{{runId}}",
+      "sent_at": "{{$datetime iso8601}}"
+    }
+  ]
+}
+
+### B.15 — POLLING: repita até OS=AGUARDANDO_APROVACAO
+GET {{ordens}}/api/v1/ordens-servico/{{ordemBId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### B.16 — Histórico disponível: duas evidências de comunicação
+GET {{financeiro}}/api/v1/quotes/{{orcamentoBId}}/communications
+Authorization: Bearer {{tokenAtendente}}
+
+### B.17 — Recusar orçamento
+POST {{financeiro}}/api/v1/quotes/{{orcamentoBId}}/reject
+Authorization: Bearer {{tokenAtendente}}
+Content-Type: application/json
+
+{
+  "reason": "Recusa intencional da validacao manual Fase 4 {{runId}}"
+}
+
+### B.18 — POLLING: repita. A OS deve permanecer AGUARDANDO_APROVACAO enquanto
+### a liberação estiver pendente e só depois chegar a ENCERRADA/item CANCELADO.
+GET {{ordens}}/api/v1/ordens-servico/{{ordemBId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### B.19 — Confirmar Financeiro=RECUSADO e motivo preenchido
+GET {{financeiro}}/api/v1/quotes/{{orcamentoBId}}
+Authorization: Bearer {{tokenAtendente}}
+
+### B.20 — Prova obrigatória da compensação em Recursos:
+### esperado disponível=18, reservado=0 (não basta a OS estar ENCERRADA).
+GET {{recursos}}/api/v1/itens-estoque/{{itemEstoqueId}}
+Authorization: Bearer {{tokenAtendente}}
+
+###############################################################################
+### 4 — Limitações e verificações externas ao formato .http
+###############################################################################
+###
+### - Ordens não expõe histórico de transições da OS. As consultas de detalhe entre
+###   operações são a evidência HTTP disponível.
+### - Financeiro não expõe GET público de pagamento. Use a resposta da confirmação e
+###   os campos payment_* projetados por GET da OS.
+### - O REST Client não implementa polling com timeout: repita manualmente as chamadas
+###   marcadas como POLLING por até 30 s, em intervalos aproximados de 500 ms.
+### - Restrições preservadas: somente Administrador cadastra usuários; Atendente (ou
+###   Administrador) atende, cadastra clientes/veículos/OS, opera orçamento/pagamento e
+###   entrega; Mecânico (ou Administrador) diagnostica, reserva itens e executa a OS.
+###   Consultas de detalhe da OS aceitam os três perfis. Mecânico não aprova/recusa
+###   orçamento e Atendente não executa diagnóstico ou execução.
+### - Outbox, Inbox, reservas físicas e DLQs não possuem endpoints públicos. Verifique
+###   esses efeitos com consultas somente leitura ao ambiente local. As três DLQs são:
+###     mvp-oficina-ordens-to-recursos-local-dlq.fifo
+###     mvp-oficina-recursos-to-ordens-local-dlq.fifo
+###     mvp-oficina-financeiro-to-ordens-local-dlq.fifo
+###   Ao final, ApproximateNumberOfMessages e ApproximateNumberOfMessagesNotVisible
+###   devem ser zero em todas elas.
