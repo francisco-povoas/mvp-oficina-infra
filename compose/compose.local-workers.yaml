@@ -1,0 +1,81 @@
+name: mvp-oficina-local-workers
+
+# Workers locais sobre as persistencias dos Compose individuais das APIs.
+# Os containers de banco e API devem estar conectados a service-mesh com os
+# aliases declarados nos respectivos compose.yaml.
+
+x-sqs-environment: &sqs-environment
+  ENVIRONMENT: dev
+  LOG_LEVEL: INFO
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: local
+  AWS_SECRET_ACCESS_KEY: local
+  SQS_ENDPOINT_URL: http://elasticmq:9324
+  SQS_CONNECT_TIMEOUT_SECONDS: 2
+  SQS_READ_TIMEOUT_SECONDS: 25
+  SQS_SEND_TIMEOUT_SECONDS: 5
+  SQS_ORDENS_TO_RECURSOS_URL: http://elasticmq:9324/000000000000/mvp-oficina-ordens-to-recursos-local.fifo
+  SQS_RECURSOS_TO_ORDENS_URL: http://elasticmq:9324/000000000000/mvp-oficina-recursos-to-ordens-local.fifo
+  SQS_FINANCEIRO_TO_ORDENS_URL: http://elasticmq:9324/000000000000/mvp-oficina-financeiro-to-ordens-local.fifo
+
+services:
+  ordens-publisher:
+    build:
+      context: ../../mvp-oficina-ordens
+      target: runtime
+    command: ["python", "-m", "app.publisher"]
+    restart: unless-stopped
+    environment:
+      <<: *sqs-environment
+      DATABASE_URL: postgresql+asyncpg://ordens:ordens@ordens-db-shared:5432/ordens
+    networks: [service-mesh]
+
+  recursos-publisher:
+    build:
+      context: ../../mvp-oficina-recursos
+      target: runtime
+    command: ["python", "-m", "app.publisher"]
+    restart: unless-stopped
+    environment:
+      <<: *sqs-environment
+      DATABASE_URL: postgresql+asyncpg://recursos:recursos@recursos-db-shared:5432/recursos
+    networks: [service-mesh]
+
+  financeiro-publisher:
+    build:
+      context: ../../mvp-oficina-financeiro
+      target: runtime
+    command: ["python", "-m", "app.publisher"]
+    restart: unless-stopped
+    environment:
+      <<: *sqs-environment
+      DYNAMODB_ENDPOINT_URL: http://financeiro-dynamodb-shared:8000
+      DYNAMODB_TABLE: mvp-oficina-financeiro-dev
+    networks: [service-mesh]
+
+  ordens-consumer:
+    build:
+      context: ../../mvp-oficina-ordens
+      target: runtime
+    command: ["python", "-m", "app.consumer"]
+    restart: unless-stopped
+    environment:
+      <<: *sqs-environment
+      DATABASE_URL: postgresql+asyncpg://ordens:ordens@ordens-db-shared:5432/ordens
+    networks: [service-mesh]
+
+  recursos-consumer:
+    build:
+      context: ../../mvp-oficina-recursos
+      target: runtime
+    command: ["python", "-m", "app.consumer"]
+    restart: unless-stopped
+    environment:
+      <<: *sqs-environment
+      DATABASE_URL: postgresql+asyncpg://recursos:recursos@recursos-db-shared:5432/recursos
+    networks: [service-mesh]
+
+networks:
+  service-mesh:
+    name: mvp-oficina-distributed-foundation_service-mesh
+    external: true
