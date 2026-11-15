@@ -9,10 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: prometheus
+      app: prometheus
   template:
     metadata:
       labels:
+        app: prometheus
         app.kubernetes.io/name: prometheus
         app.kubernetes.io/part-of: mvp-oficina
     spec:
@@ -20,17 +21,29 @@ spec:
         - name: prometheus
           image: prom/prometheus:v3.13.1
           imagePullPolicy: IfNotPresent
-          args: ["--config.file=/etc/prometheus/prometheus.yml"]
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.retention.time=2h
           ports:
             - name: http
               containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            periodSeconds: 10
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 50m
+              memory: 128Mi
             limits:
               cpu: 500m
-              memory: 512Mi
+              memory: 384Mi
           volumeMounts:
             - name: config
               mountPath: /etc/prometheus/prometheus.yml

@@ -31,6 +31,12 @@ spec:
               value: 127.0.0.1:8001
             - name: KONG_STATUS_LISTEN
               value: 0.0.0.0:8100
+            - name: KONG_NGINX_WORKER_PROCESSES
+              value: "1"
+            - name: KONG_NGINX_WORKER_CONNECTIONS
+              value: "1024"
+            - name: KONG_MEM_CACHE_SIZE
+              value: 32m
           ports:
             - name: proxy
               containerPort: 8000
@@ -40,21 +46,28 @@ spec:
             httpGet:
               path: /status
               port: status
-            initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 3
           livenessProbe:
             httpGet:
               path: /status
               port: status
-            initialDelaySeconds: 15
             periodSeconds: 10
+            timeoutSeconds: 3
+          startupProbe:
+            httpGet:
+              path: /status
+              port: status
+            failureThreshold: 30
+            periodSeconds: 3
+            timeoutSeconds: 3
           resources:
             requests:
               cpu: 100m
               memory: 128Mi
             limits:
               cpu: 500m
-              memory: 256Mi
+              memory: 512Mi
           volumeMounts:
             - name: configuration
               mountPath: /kong/declarative/kong.yaml

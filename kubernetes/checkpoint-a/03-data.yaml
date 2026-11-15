@@ -1,0 +1,245 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ordens-db
+  namespace: mvp-oficina
+spec:
+  type: ClusterIP
+  selector:
+    app: ordens-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ordens-db
+  namespace: mvp-oficina
+  labels:
+    app: ordens-db
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ordens-db
+  template:
+    metadata:
+      labels:
+        app: ordens-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: ordens
+            - name: POSTGRES_USER
+              value: ordens
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: checkpoint-a-secrets
+                  key: ordens-postgres-password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "ordens", "-d", "ordens"]
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "ordens", "-d", "ordens"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recursos-db
+  namespace: mvp-oficina
+spec:
+  type: ClusterIP
+  selector:
+    app: recursos-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recursos-db
+  namespace: mvp-oficina
+  labels:
+    app: recursos-db
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recursos-db
+  template:
+    metadata:
+      labels:
+        app: recursos-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: recursos
+            - name: POSTGRES_USER
+              value: recursos
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: checkpoint-a-secrets
+                  key: recursos-postgres-password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "recursos", "-d", "recursos"]
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "recursos", "-d", "recursos"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: financeiro-dynamodb
+  namespace: mvp-oficina
+spec:
+  type: ClusterIP
+  selector:
+    app: financeiro-dynamodb
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: financeiro-dynamodb
+  namespace: mvp-oficina
+  labels:
+    app: financeiro-dynamodb
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: financeiro-dynamodb
+  template:
+    metadata:
+      labels:
+        app: financeiro-dynamodb
+    spec:
+      containers:
+        - name: dynamodb-local
+          image: amazon/dynamodb-local:2.6.1
+          args: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            tcpSocket: {port: http}
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          livenessProbe:
+            tcpSocket: {port: http}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 192Mi}
+            limits: {cpu: 400m, memory: 384Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticmq
+  namespace: mvp-oficina
+spec:
+  type: ClusterIP
+  selector:
+    app: elasticmq
+  ports:
+    - name: sqs
+      port: 9324
+      targetPort: sqs
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticmq
+  namespace: mvp-oficina
+  labels:
+    app: elasticmq
+    app.kubernetes.io/component: messaging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticmq
+  template:
+    metadata:
+      labels:
+        app: elasticmq
+    spec:
+      containers:
+        - name: elasticmq
+          image: softwaremill/elasticmq-native:1.7.1
+          ports:
+            - name: sqs
+              containerPort: 9324
+          volumeMounts:
+            - name: config
+              mountPath: /opt/elasticmq.conf
+              subPath: elasticmq.conf
+              readOnly: true
+          readinessProbe:
+            httpGet: {path: /health, port: sqs}
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: {path: /health, port: sqs}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+      volumes:
+        - name: config
+          configMap:
+            name: elasticmq-config

@@ -9,10 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: jaeger
+      app: jaeger
   template:
     metadata:
       labels:
+        app: jaeger
         app.kubernetes.io/name: jaeger
         app.kubernetes.io/part-of: mvp-oficina
     spec:
@@ -25,13 +26,21 @@ spec:
               containerPort: 4317
             - name: query-ui
               containerPort: 16686
+          readinessProbe:
+            tcpSocket:
+              port: query-ui
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: query-ui
+            periodSeconds: 10
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 50m
+              memory: 128Mi
             limits:
               cpu: 500m
-              memory: 512Mi
+              memory: 384Mi
 ---
 apiVersion: v1
 kind: Service

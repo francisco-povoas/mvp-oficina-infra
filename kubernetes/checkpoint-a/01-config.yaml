@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: checkpoint-a-config
+  namespace: mvp-oficina
+data:
+  ENVIRONMENT: dev
+  LOG_LEVEL: INFO
+  AWS_REGION: us-east-1
+  DYNAMODB_ENDPOINT_URL: http://financeiro-dynamodb:8000
+  DYNAMODB_TABLE: mvp-oficina-financeiro-kubernetes-local
+  SQS_ENDPOINT_URL: http://elasticmq:9324
+  SQS_ORDENS_TO_RECURSOS_URL: http://elasticmq:9324/000000000000/mvp-oficina-ordens-to-recursos-local.fifo
+  SQS_RECURSOS_TO_ORDENS_URL: http://elasticmq:9324/000000000000/mvp-oficina-recursos-to-ordens-local.fifo
+  SQS_FINANCEIRO_TO_ORDENS_URL: http://elasticmq:9324/000000000000/mvp-oficina-financeiro-to-ordens-local.fifo
+  INTERNAL_AUTH_URL: http://ordens-api:8001/internal/v1/auth/token
+  RESOURCES_BASE_URL: http://recursos-api:8002
+  FINANCE_BASE_URL: http://financeiro-api:8003
+  ORDERS_BASE_URL: http://ordens-api:8001
+  JWT_ALGORITHM: HS256
+  JWT_ISSUER: mvp-oficina-ordens
+  JWT_USER_AUDIENCE: mvp-oficina-users
+  SQS_CONNECT_TIMEOUT_SECONDS: "2"
+  SQS_READ_TIMEOUT_SECONDS: "25"
+  SQS_SEND_TIMEOUT_SECONDS: "5"
+  PUBLISHER_POLL_INTERVAL_SECONDS: "1"
+  CONSUMER_WAIT_TIME_SECONDS: "5"
+  CONSUMER_VISIBILITY_TIMEOUT_SECONDS: "60"
+  CONSUMER_HEARTBEAT_SECONDS: "20"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticmq-config
+  namespace: mvp-oficina
+data:
+  elasticmq.conf: |
+    include classpath("application.conf")
+    node-address {
+      protocol = http
+      host = "*"
+      port = 9324
+      context-path = ""
+    }
+    rest-sqs {
+      enabled = true
+      bind-port = 9324
+      bind-hostname = "0.0.0.0"
+      sqs-limits = strict
+    }
+    generate-node-address = false
+    aws {
+      region = us-east-1
+      accountId = 000000000000
+    }
+    queues {
+      "mvp-oficina-ordens-to-recursos-local-dlq.fifo" {
+        fifo = true
+        contentBasedDeduplication = false
+      }
+      "mvp-oficina-recursos-to-ordens-local-dlq.fifo" {
+        fifo = true
+        contentBasedDeduplication = false
+      }
+      "mvp-oficina-financeiro-to-ordens-local-dlq.fifo" {
+        fifo = true
+        contentBasedDeduplication = false
+      }
+      "mvp-oficina-ordens-to-recursos-local.fifo" {
+        defaultVisibilityTimeout = 60 seconds
+        receiveMessageWait = 20 seconds
+        fifo = true
+        contentBasedDeduplication = false
+        deadLettersQueue {
+          name = "mvp-oficina-ordens-to-recursos-local-dlq.fifo"
+          maxReceiveCount = 5
+        }
+      }
+      "mvp-oficina-recursos-to-ordens-local.fifo" {
+        defaultVisibilityTimeout = 60 seconds
+        receiveMessageWait = 20 seconds
+        fifo = true
+        contentBasedDeduplication = false
+        deadLettersQueue {
+          name = "mvp-oficina-recursos-to-ordens-local-dlq.fifo"
+          maxReceiveCount = 5
+        }
+      }
+      "mvp-oficina-financeiro-to-ordens-local.fifo" {
+        defaultVisibilityTimeout = 60 seconds
+        receiveMessageWait = 20 seconds
+        fifo = true
+        contentBasedDeduplication = false
+        deadLettersQueue {
+          name = "mvp-oficina-financeiro-to-ordens-local-dlq.fifo"
+          maxReceiveCount = 5
+        }
+      }
+    }

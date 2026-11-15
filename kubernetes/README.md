@@ -6,7 +6,10 @@ Somente componentes compartilhados foram extraídos do monólito:
 - Kong DB-less e sua configuração declarativa;
 - OpenTelemetry Collector, Jaeger, Prometheus e Grafana.
 
-Os Deployments, Services, Jobs, HPAs, ConfigMaps e referências de Secret das três aplicações pertencem aos respectivos repositórios. Nenhum Deployment de negócio é definido aqui.
+O Checkpoint A da Etapa 4 centraliza a composição distribuída local em
+[`checkpoint-a/`](checkpoint-a/), sem duplicar manifests nos microsserviços. Os
+manifests históricos de gateway e observabilidade permanecem separados e não são
+aplicados por esse checkpoint.
 
 Renderização estática:
 
@@ -14,4 +17,15 @@ Renderização estática:
 kubectl kustomize kubernetes
 ```
 
-Os Services compartilhados usam somente `ClusterIP`; exposição, TLS, `NetworkPolicy`, storage, secrets, alta disponibilidade e imagens por digest serão definidos na Etapa 4. Não execute `kubectl apply` durante a Etapa 1.
+Os Services do Checkpoint A usam somente `ClusterIP`, imagens locais e storage efêmero.
+Kong, observabilidade, TLS público, imagens remotas e alta disponibilidade permanecem
+fora deste checkpoint.
+
+O Checkpoint B reutiliza o Kong DB-less em [`gateway/`](gateway/README.md), aplicado no
+namespace `mvp-oficina` e apontado para os Services `ClusterIP` do Checkpoint A. A
+observabilidade permanece separada e não é aplicada nessa frente.
+
+O Checkpoint C reutiliza [`observability/`](observability/README.md) em namespace
+próprio e aplica [`checkpoint-c/`](checkpoint-c/) somente como overlay de
+auto-instrumentação sobre as APIs e os workers, sem alterar os manifests-base dos
+Checkpoints A e B.

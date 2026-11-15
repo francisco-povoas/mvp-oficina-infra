@@ -9,10 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: otel-collector
+      app: otel-collector
   template:
     metadata:
       labels:
+        app: otel-collector
         app.kubernetes.io/name: otel-collector
         app.kubernetes.io/part-of: mvp-oficina
     spec:
@@ -26,6 +27,20 @@ spec:
               containerPort: 4317
             - name: prometheus
               containerPort: 8889
+            - name: health
+              containerPort: 13133
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            periodSeconds: 10
+            timeoutSeconds: 3
           resources:
             requests:
               cpu: 100m
@@ -60,3 +75,6 @@ spec:
     - name: prometheus
       port: 8889
       targetPort: prometheus
+    - name: health
+      port: 13133
+      targetPort: health

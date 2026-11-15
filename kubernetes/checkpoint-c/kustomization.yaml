@@ -1,0 +1,69 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../checkpoint-a/05-apis.yaml
+  - ../checkpoint-a/06-workers.yaml
+images:
+  - name: mvp-oficina-ordens
+    newTag: checkpoint-c
+  - name: mvp-oficina-recursos
+    newTag: checkpoint-c
+  - name: mvp-oficina-financeiro
+    newTag: checkpoint-c
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      labelSelector: app.kubernetes.io/component in (api,publisher,consumer)
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/command/0
+        value: opentelemetry-instrument
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OTEL_SERVICE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['app']
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-collector.observability.svc.cluster.local:4317
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_EXPORTER_OTLP_PROTOCOL, value: grpc}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_EXPORTER_OTLP_INSECURE, value: "true"}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_TRACES_EXPORTER, value: otlp}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_METRICS_EXPORTER, value: otlp}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_LOGS_EXPORTER, value: none}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_METRIC_EXPORT_INTERVAL, value: "5000"}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_BSP_SCHEDULE_DELAY, value: "1000"}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_TRACES_SAMPLER, value: always_on}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_SEMCONV_STABILITY_OPT_IN, value: http}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OTEL_PYTHON_FASTAPI_EXCLUDED_URLS, value: ^/health$}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OTEL_RESOURCE_ATTRIBUTES
+          value: deployment.environment.name=local,k8s.namespace.name=mvp-oficina

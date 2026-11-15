@@ -12,11 +12,3 @@ metadata:
   labels:
     app.kubernetes.io/part-of: mvp-oficina
     app.kubernetes.io/component: gateway
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: observability
-  labels:
-    app.kubernetes.io/part-of: mvp-oficina
-    app.kubernetes.io/component: observability

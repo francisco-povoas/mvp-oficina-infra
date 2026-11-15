@@ -28,6 +28,9 @@ docker compose \
 
 echo "[4/7] Kubernetes rendering"
 kubectl kustomize kubernetes >/dev/null
+kubectl kustomize kubernetes/checkpoint-a >/dev/null
+kubectl kustomize kubernetes/checkpoint-c \
+  --load-restrictor LoadRestrictionsNone >/dev/null
 
 echo "[5/7] Terraform formatting"
 terraform fmt -check -recursive terraform

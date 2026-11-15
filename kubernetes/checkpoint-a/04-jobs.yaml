@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ordens-migrate
+  namespace: mvp-oficina
+  labels:
+    app.kubernetes.io/component: migration
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: mvp-oficina-ordens:checkpoint-a
+          imagePullPolicy: Never
+          command: ["alembic", "upgrade", "head"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: ordens-database-url}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: recursos-migrate
+  namespace: mvp-oficina
+  labels:
+    app.kubernetes.io/component: migration
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: mvp-oficina-recursos:checkpoint-a
+          imagePullPolicy: Never
+          command: ["alembic", "upgrade", "head"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: recursos-database-url}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}

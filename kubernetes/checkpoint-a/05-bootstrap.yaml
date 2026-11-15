@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ordens-bootstrap
+  namespace: mvp-oficina
+  labels:
+    app.kubernetes.io/component: bootstrap
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bootstrap
+          image: mvp-oficina-ordens:checkpoint-a
+          imagePullPolicy: Never
+          command: ["python", "-m", "app.bootstrap_iam"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: ordens-database-url}
+            - name: ADMIN_NOME
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: admin-name}
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: admin-email}
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: admin-password}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: financeiro-bootstrap
+  namespace: mvp-oficina
+  labels:
+    app.kubernetes.io/component: bootstrap
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bootstrap
+          image: mvp-oficina-financeiro:checkpoint-a
+          imagePullPolicy: Never
+          command: ["python", "-m", "app.infrastructure.bootstrap"]
+          envFrom:
+            - configMapRef: {name: checkpoint-a-config}
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-access-key-id}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: checkpoint-a-secrets, key: aws-secret-access-key}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 300m, memory: 256Mi}
