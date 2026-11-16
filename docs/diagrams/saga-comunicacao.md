@@ -57,7 +57,7 @@ sequenceDiagram
     RC->>RDB: Inbox + reserva CONSUMIDA + Outbox
     RP-->>MQ: ReservationConsumed.v1
     MQ-->>OC: resultado
-    OC->>ODB: item CONSUMIDO; OS ENTREGUE quando todos concluírem
+    OC->>ODB: item CONSUMIDO e OS ENTREGUE após todos os consumos
 
     alt inclusão pendente cancelada após reserva
         U->>OA: cancelar operação
@@ -69,7 +69,7 @@ sequenceDiagram
         MQ-->>OC: resultado
         OC->>ODB: Saga COMPENSATED
     else resultado ItemBackordered
-        OC->>ODB: item A_RECEBER; Saga COMPLETED
+        OC->>ODB: item A_RECEBER e Saga COMPLETED
         Note over OA,RDB: Não há reserva física para liberar
     end
 ```
