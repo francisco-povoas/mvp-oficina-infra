@@ -1,5 +1,25 @@
 # BDD
 
-O cenário atual verifica somente metadados entregues pela Etapa 1. Ele prova que pytest-bdd está configurado e que contratos/versões podem ser usados como fixtures, mas não afirma que os serviços estejam integrados.
+O diretório mantém o cenário histórico de metadados e um cenário funcional da Etapa
+6. O happy path cria dados únicos por execução e percorre, por HTTP real, Ordens,
+Recursos e Financeiro desde o cadastro até a entrega da OS.
 
-Os cenários caixa-preta de autenticação, reserva, backorder, aprovação, recusa, pagamento, compensação, retry, DLQ, restart e reconciliação serão implementados na Etapa 3, depois de a comunicação da Etapa 2 existir.
+Execute na raiz de Infra:
+
+```bash
+make test-bdd
+```
+
+O comando usa o projeto Compose isolado `mvp-oficina-bdd`, sem publicar portas e com
+PostgreSQL/DynamoDB efêmeros. Ele inicia as três APIs, ElasticMQ e os cinco workers,
+executa `pytest-bdd`, grava `artifacts/bdd/junit.xml` e sempre remove os containers e
+dados exclusivos do teste. Ambientes Compose de desenvolvimento e Minikube não são
+alterados.
+
+O cenário comprova por API e consultas somente leitura:
+
+- reserva e consumo únicos da peça;
+- comunicação e aprovação do orçamento;
+- confirmação do pagamento simulado e publicação de `PaymentConfirmed.v1`;
+- processamento pela Inbox de Ordens, projeção financeira e OS `ENTREGUE`;
+- ausência de efeitos duplicados e de mensagens nas três DLQs.
