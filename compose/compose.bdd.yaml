@@ -1,0 +1,253 @@
+name: mvp-oficina-bdd
+
+x-sqs-environment: &sqs-environment
+  ENVIRONMENT: test
+  LOG_LEVEL: WARNING
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: localdynamodb
+  AWS_SECRET_ACCESS_KEY: localdynamodb
+  SQS_ENDPOINT_URL: http://elasticmq:9324
+  SQS_ORDENS_TO_RECURSOS_URL: http://elasticmq:9324/000000000000/mvp-oficina-ordens-to-recursos-local.fifo
+  SQS_RECURSOS_TO_ORDENS_URL: http://elasticmq:9324/000000000000/mvp-oficina-recursos-to-ordens-local.fifo
+  SQS_FINANCEIRO_TO_ORDENS_URL: http://elasticmq:9324/000000000000/mvp-oficina-financeiro-to-ordens-local.fifo
+  PUBLISHER_POLL_INTERVAL_SECONDS: "0.1"
+  CONSUMER_WAIT_TIME_SECONDS: "1"
+  CONSUMER_VISIBILITY_TIMEOUT_SECONDS: "10"
+  CONSUMER_HEARTBEAT_SECONDS: "1"
+
+x-ordens-environment: &ordens-environment
+  <<: *sqs-environment
+  DATABASE_URL: postgresql+asyncpg://ordens:ordens@ordens-db:5432/ordens_bdd
+  JWT_SECRET_KEY: bdd-local-only-secret
+  ADMIN_NOME: Administrador BDD
+  ADMIN_EMAIL: admin.bdd@example.test
+  ADMIN_PASSWORD: Bdd-Local-Only-2026!
+  INTERNAL_AUTH_URL: http://ordens-api:8000/internal/v1/auth/token
+  RESOURCES_BASE_URL: http://recursos-api:8000
+  FINANCE_BASE_URL: http://financeiro-api:8000
+  SERVICE_CLIENT_ID: mvp-oficina-ordens
+  SERVICE_CLIENT_SECRET: financeiro-local-secret
+  SERVICE_CLIENTS_JSON: '{"mvp-oficina-financeiro":{"secret_hash":"$$2b$$04$$GQcP0R7hj0drm8Tv10ze8ujRWGslA7x6Y.IwvUeiHZewHQ9jlxRvO","grants":{"mvp-oficina-ordens":["orders:quote-context:read","orders:payment-context:read"]}},"mvp-oficina-ordens":{"secret_hash":"$$2b$$04$$GQcP0R7hj0drm8Tv10ze8ujRWGslA7x6Y.IwvUeiHZewHQ9jlxRvO","grants":{"mvp-oficina-recursos":["resources:catalog:read"],"mvp-oficina-financeiro":["finance:status:read"]}}}'
+
+x-recursos-environment: &recursos-environment
+  <<: *sqs-environment
+  DATABASE_URL: postgresql+asyncpg://recursos:recursos@recursos-db:5432/recursos_bdd
+  JWT_SECRET_KEY: bdd-local-only-secret
+
+x-financeiro-environment: &financeiro-environment
+  <<: *sqs-environment
+  DYNAMODB_ENDPOINT_URL: http://dynamodb:8000
+  DYNAMODB_TABLE: mvp-oficina-financeiro-bdd
+  JWT_SECRET_KEY: bdd-local-only-secret
+  INTERNAL_AUTH_URL: http://ordens-api:8000/internal/v1/auth/token
+  ORDERS_BASE_URL: http://ordens-api:8000
+  SERVICE_CLIENT_ID: mvp-oficina-financeiro
+  SERVICE_CLIENT_SECRET: financeiro-local-secret
+  PAYMENT_PROVIDER: simulated
+
+services:
+  ordens-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ordens_bdd
+      POSTGRES_USER: ordens
+      POSTGRES_PASSWORD: ordens
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ordens -d ordens_bdd"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    tmpfs: [/var/lib/postgresql/data]
+
+  recursos-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: recursos_bdd
+      POSTGRES_USER: recursos
+      POSTGRES_PASSWORD: recursos
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recursos -d recursos_bdd"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    tmpfs: [/var/lib/postgresql/data]
+
+  dynamodb:
+    image: amazon/dynamodb-local:2.6.1
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    working_dir: /home/dynamodblocal
+
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.7.1
+    volumes:
+      - ./elasticmq.conf:/opt/elasticmq.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9324/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  ordens-migrate:
+    build:
+      context: ../../mvp-oficina-ordens
+      target: test
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ordens:ordens@ordens-db:5432/ordens_bdd
+    depends_on:
+      ordens-db:
+        condition: service_healthy
+
+  recursos-migrate:
+    build:
+      context: ../../mvp-oficina-recursos
+      target: test
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://recursos:recursos@recursos-db:5432/recursos_bdd
+    depends_on:
+      recursos-db:
+        condition: service_healthy
+
+  financeiro-bootstrap:
+    build:
+      context: ../../mvp-oficina-financeiro
+      target: test
+    command:
+      - python
+      - -c
+      - from app.config import get_settings; from app.infrastructure.dynamodb import ensure_table; ensure_table(get_settings())
+    environment: *financeiro-environment
+    depends_on:
+      dynamodb:
+        condition: service_started
+
+  ordens-api:
+    build:
+      context: ../../mvp-oficina-ordens
+      target: test
+    command:
+      - sh
+      - -c
+      - python -m app.bootstrap_iam && exec uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
+    environment: *ordens-environment
+    depends_on:
+      ordens-migrate:
+        condition: service_completed_successfully
+
+  recursos-api:
+    build:
+      context: ../../mvp-oficina-recursos
+      target: test
+    command: ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *recursos-environment
+    depends_on:
+      recursos-migrate:
+        condition: service_completed_successfully
+
+  financeiro-api:
+    build:
+      context: ../../mvp-oficina-financeiro
+      target: test
+    command: ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *financeiro-environment
+    depends_on:
+      financeiro-bootstrap:
+        condition: service_completed_successfully
+      ordens-api:
+        condition: service_started
+
+  ordens-publisher:
+    build:
+      context: ../../mvp-oficina-ordens
+      target: test
+    command: ["python", "-m", "app.publisher"]
+    environment: *ordens-environment
+    depends_on:
+      ordens-migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+
+  ordens-consumer:
+    build:
+      context: ../../mvp-oficina-ordens
+      target: test
+    command: ["python", "-m", "app.consumer"]
+    environment: *ordens-environment
+    depends_on:
+      ordens-migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+
+  recursos-publisher:
+    build:
+      context: ../../mvp-oficina-recursos
+      target: test
+    command: ["python", "-m", "app.publisher"]
+    environment: *recursos-environment
+    depends_on:
+      recursos-migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+
+  recursos-consumer:
+    build:
+      context: ../../mvp-oficina-recursos
+      target: test
+    command: ["python", "-m", "app.consumer"]
+    environment: *recursos-environment
+    depends_on:
+      recursos-migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+
+  financeiro-publisher:
+    build:
+      context: ../../mvp-oficina-financeiro
+      target: test
+    command: ["python", "-m", "app.publisher"]
+    environment: *financeiro-environment
+    depends_on:
+      financeiro-bootstrap:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_healthy
+
+  bdd:
+    build:
+      context: ..
+      dockerfile: Dockerfile.bdd
+    command:
+      - python
+      - -m
+      - pytest
+      - -q
+      - tests/bdd/test_processamento_completo_os.py
+      - --junitxml=/artifacts/junit.xml
+    environment:
+      ORDENS_URL: http://ordens-api:8000
+      RECURSOS_URL: http://recursos-api:8000
+      FINANCEIRO_URL: http://financeiro-api:8000
+      ORDENS_DATABASE_URL: postgresql://ordens:ordens@ordens-db:5432/ordens_bdd
+      RECURSOS_DATABASE_URL: postgresql://recursos:recursos@recursos-db:5432/recursos_bdd
+      DYNAMODB_ENDPOINT_URL: http://dynamodb:8000
+      DYNAMODB_TABLE: mvp-oficina-financeiro-bdd
+      SQS_ENDPOINT_URL: http://elasticmq:9324
+      ADMIN_EMAIL: admin.bdd@example.test
+      ADMIN_PASSWORD: Bdd-Local-Only-2026!
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: localdynamodb
+      AWS_SECRET_ACCESS_KEY: localdynamodb
+    volumes:
+      - ../artifacts/bdd:/artifacts
+    depends_on:
+      ordens-api:
+        condition: service_started
+      recursos-api:
+        condition: service_started
+      financeiro-api:
+        condition: service_started

@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements-dev.txt
+
+COPY pyproject.toml .
+COPY tests ./tests
+
+CMD ["python", "-m", "pytest", "-q", "tests/bdd/test_processamento_completo_os.py"]

@@ -6,6 +6,8 @@ markers = [
   "stage1: validações estruturais executáveis na Etapa 1",
   "stage2: validações de transporte e comunicação da Etapa 2",
   "stage3: cenários distribuídos que somente serão ativados na Etapa 3",
+  "stage6: cenário BDD funcional distribuído da Etapa 6",
+  "functional: cenário que requer os três microsserviços e dependências reais",
 ]
 
 [tool.ruff]
