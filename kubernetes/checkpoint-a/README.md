@@ -4,8 +4,10 @@ Composição local centralizada das três APIs, persistências independentes, El
 três publishers e dois consumers. Todos os Services são `ClusterIP`; o acesso HTTP do
 host durante a validação usa somente `kubectl port-forward` temporário.
 
-Os PostgreSQL e o DynamoDB Local usam armazenamento efêmero do cluster (`emptyDir` ou
-modo `inMemory`). Eles não montam nem removem volumes do Docker Compose existente.
+Os PostgreSQL usam armazenamento efêmero do cluster (`emptyDir`). O DynamoDB Local
+usa um PVC `ReadWriteOnce` de 1 GiB para preservar a tabela e os dados quando seu pod
+ou contêiner reinicia; o PVC continua restrito ao namespace local e é removido com
+ele. Nenhum banco monta ou remove volumes do Docker Compose existente.
 O runner gera o Secret `checkpoint-a-secrets` com valores aleatórios na primeira
 subida. Nenhuma credencial é versionada, exibida ou lida do `.env`.
 
@@ -31,7 +33,7 @@ Atalho para build, subida e fluxo distribuído:
 ./scripts/checkpoint-a.sh all
 ```
 
-Desligamento e remoção somente dos dados efêmeros deste checkpoint:
+Desligamento e remoção do namespace e dos dados locais deste checkpoint:
 
 ```bash
 ./scripts/checkpoint-a.sh down

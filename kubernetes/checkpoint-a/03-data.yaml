@@ -148,6 +148,18 @@ spec:
       port: 8000
       targetPort: http
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: financeiro-dynamodb-data
+  namespace: mvp-oficina
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -166,13 +178,19 @@ spec:
       labels:
         app: financeiro-dynamodb
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
         - name: dynamodb-local
           image: amazon/dynamodb-local:2.6.1
-          args: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+          args:
+            ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/home/dynamodblocal/data"]
           ports:
             - name: http
               containerPort: 8000
+          volumeMounts:
+            - name: data
+              mountPath: /home/dynamodblocal/data
           readinessProbe:
             tcpSocket: {port: http}
             initialDelaySeconds: 3
@@ -184,6 +202,10 @@ spec:
           resources:
             requests: {cpu: 50m, memory: 192Mi}
             limits: {cpu: 400m, memory: 384Mi}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: financeiro-dynamodb-data
 ---
 apiVersion: v1
 kind: Service
