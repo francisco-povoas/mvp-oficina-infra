@@ -110,6 +110,48 @@ def validate_kubernetes_ownership() -> None:
                 raise ValueError(f"versioned Secret is forbidden: {path}")
 
 
+def validate_dynamodb_local_persistence() -> None:
+    path = ROOT / "kubernetes/checkpoint-a/03-data.yaml"
+    documents = [
+        document
+        for document in yaml.safe_load_all(path.read_text(encoding="utf-8"))
+        if isinstance(document, dict)
+    ]
+    resources = {
+        (document.get("kind"), document.get("metadata", {}).get("name")): document
+        for document in documents
+    }
+    claim = resources.get(("PersistentVolumeClaim", "financeiro-dynamodb-data"))
+    deployment = resources.get(("Deployment", "financeiro-dynamodb"))
+    if claim is None or deployment is None:
+        raise ValueError("DynamoDB Local must own a persistent volume claim")
+    if claim.get("spec", {}).get("accessModes") != ["ReadWriteOnce"]:
+        raise ValueError("DynamoDB Local volume must be single-writer")
+
+    pod_spec = deployment["spec"]["template"]["spec"]
+    container = next(
+        item for item in pod_spec["containers"] if item["name"] == "dynamodb-local"
+    )
+    args = container.get("args", [])
+    if "-inMemory" in args:
+        raise ValueError("DynamoDB Local must not use volatile in-memory storage")
+    if "-dbPath" not in args or "/home/dynamodblocal/data" not in args:
+        raise ValueError("DynamoDB Local must persist its database under the mounted path")
+    mounts = {item["name"]: item["mountPath"] for item in container.get("volumeMounts", [])}
+    if mounts.get("data") != "/home/dynamodblocal/data":
+        raise ValueError("DynamoDB Local data mount is missing")
+    volumes = {item["name"]: item for item in pod_spec.get("volumes", [])}
+    if (
+        volumes.get("data", {})
+        .get("persistentVolumeClaim", {})
+        .get("claimName")
+        != "financeiro-dynamodb-data"
+    ):
+        raise ValueError("DynamoDB Local must mount its declared claim")
+    if pod_spec.get("securityContext", {}).get("fsGroup") != 1000:
+        raise ValueError("DynamoDB Local volume must be writable by the image group")
+
+
 def validate_observability() -> None:
     collector_path = ROOT / "kubernetes/observability/config/otel-collector.yaml"
     collector = yaml.safe_load(collector_path.read_text(encoding="utf-8"))
@@ -209,6 +251,7 @@ def main() -> None:
     parse_documents()
     validate_kong()
     validate_kubernetes_ownership()
+    validate_dynamodb_local_persistence()
     validate_observability()
     validate_no_obvious_secrets()
     validate_messaging_topology()

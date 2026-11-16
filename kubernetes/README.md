@@ -17,7 +17,9 @@ Renderização estática:
 kubectl kustomize kubernetes
 ```
 
-Os Services do Checkpoint A usam somente `ClusterIP`, imagens locais e storage efêmero.
+Os Services do Checkpoint A usam somente `ClusterIP` e imagens locais. Os PostgreSQL
+permanecem efêmeros; o DynamoDB Local usa um PVC pequeno para sobreviver a reinícios
+do pod durante a demonstração.
 Kong, observabilidade, TLS público, imagens remotas e alta disponibilidade permanecem
 fora deste checkpoint.
 
